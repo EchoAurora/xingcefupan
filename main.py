@@ -11,7 +11,7 @@ import time
 # ==========================================
 # 1. 全局配置与响应式 UI 样式
 # ==========================================
-st.set_page_config(page_title="行测 Pro Max", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="行测复盘小助手", layout="wide", page_icon="🚀")
 
 st.markdown("""
     <style>
@@ -77,7 +77,7 @@ def hash_pw(pw): return hashlib.sha256(str(pw).encode()).hexdigest()
 
 def load_users():
     if not os.path.exists(USERS_FILE):
-        d = {"admin": {"name": "系统管理员", "password": hash_pw("qazwsx"), "role": "admin"}}
+        d = {"admin": {"name": "管理员", "password": hash_pw("qazwsx"), "role": "admin"}}
         save_users(d)
         return d
     with open(USERS_FILE, 'r', encoding='utf-8') as f: return json.load(f)
@@ -98,7 +98,7 @@ def load_data(un):
 def save_data(df, un): df.to_csv(f'data_storage_{un}.csv', index=False, encoding='utf-8-sig')
 
 # ==========================================
-# 3. 登录与注册系统
+# 3. 身份验证
 # ==========================================
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
@@ -106,7 +106,6 @@ if not st.session_state.logged_in:
     c1, c2 = st.columns([1, 1.2])
     with c1:
         st.markdown("<br><br><h1>🚀 行测 Pro Max</h1><h3>数字化复盘专家</h3>", unsafe_allow_html=True)
-        st.info("💡 系统已实现电脑/手机 UI 适配，支持私人数据隔离与管理后台。")
     with c2:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         t1, t2 = st.tabs(["🔑 登录", "📝 快速注册"])
@@ -122,8 +121,8 @@ if not st.session_state.logged_in:
                 else: st.error("账号或密码错误")
         with t2:
             nu = st.text_input("设置账号", key="r_u")
-            nn = st.text_input("设置昵称", key="r_n")
-            np = st.text_input("设置密码", type="password", key="r_p")
+            nn = st.text_input("昵称", key="r_n")
+            np = st.text_input("密码", type="password", key="r_p")
             if st.button("完成注册"):
                 if nu and nn and np:
                     users = load_users()
@@ -131,13 +130,12 @@ if not st.session_state.logged_in:
                     else:
                         users[nu] = {"name": nn, "password": hash_pw(np), "role": "user"}
                         save_users(users)
-                        st.success("注册成功！请登录")
-                else: st.warning("请填写完整信息")
+                        st.success("注册成功！")
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # ==========================================
-# 4. 主程序导航
+# 4. 导航控制
 # ==========================================
 un = st.session_state.u_info['un']
 role = st.session_state.u_info['role']
@@ -147,41 +145,41 @@ with st.sidebar:
     st.markdown(f"### 👋 {st.session_state.u_info['name']}")
     menu_list = ["🏠 复盘首页", "📊 趋势分析", "📑 单卷详情", "✏️ 录入成绩", "⚙️ 数据管理"]
     if role == 'admin': menu_list.append("🛡️ 管理后台")
-    menu = st.radio("导航菜单", menu_list)
+    menu = st.radio("功能", menu_list)
     st.divider()
     if st.button("安全退出"):
         st.session_state.logged_in = False
         st.rerun()
 
-# --- A. 首页 ---
+# --- A. 复盘首页 ---
 if menu == "🏠 复盘首页":
-    st.title("📊 个人备考看板")
+    st.title("📊 备考驾驶舱")
     if df.empty:
-        st.info("暂无数据，请先在‘录入成绩’中保存一次考试。")
+        st.info("欢迎！请先录入一次成绩。")
     else:
         latest = df.iloc[-1]
         k1, k2, k3, k4 = st.columns(4)
         with k1: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{latest["总分"]:.1f}</div><div class="m-label">最新得分</div></div>', unsafe_allow_html=True)
-        with k2: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{latest["总正确数"]}/{latest["总题数"]}</div><div class="m-label">答对题目</div></div>', unsafe_allow_html=True)
-        with k3: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{int(latest["总用时"])}<small>m</small></div><div class="m-label">本次用时</div></div>', unsafe_allow_html=True)
+        with k2: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{latest["总正确数"]}/{latest["总题数"]}</div><div class="m-label">答对题数</div></div>', unsafe_allow_html=True)
+        with k3: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{int(latest["总用时"])}<small>m</small></div><div class="m-label">总用时</div></div>', unsafe_allow_html=True)
         with k4: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{len(df)}</div><div class="m-label">练习总数</div></div>', unsafe_allow_html=True)
 
-        col_l, col_r = st.columns([1.5, 1])
-        with col_l:
+        col1, col2 = st.columns([1.5, 1])
+        with col1:
             st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-            st.subheader("🕸️ 模块能力分布")
+            st.subheader("🕸️ 能力图谱")
             cats = list(DEFAULT_MODULES.keys())
-            fig_r = go.Figure(go.Scatterpolar(r=[latest[f"{m}_正确率"] for m in cats], theta=cats, fill='toself'))
-            fig_r.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=350, margin=dict(l=40,r=40,t=40,b=40))
-            st.plotly_chart(fig_r, use_container_width=True, config={'displayModeBar': False})
+            fig = go.Figure(go.Scatterpolar(r=[latest[f"{m}_正确率"] for m in cats], theta=cats, fill='toself'))
+            fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=350, margin=dict(l=40,r=40,t=40,b=40))
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
             st.markdown('</div>', unsafe_allow_html=True)
-        with col_r:
+        with col2:
             st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-            st.subheader("💡 提分建议")
-            acc_data = [(m, latest[f"{m}_正确率"]) for m in DEFAULT_MODULES]
-            worst = sorted(acc_data, key=lambda x: x[1])[0]
-            st.error(f"本次最弱：**{worst[0]}**")
-            st.caption(f"正确率仅 {worst[1]:.1%}，建议针对性刷题。")
+            st.subheader("💡 核心建议")
+            accs = [(m, latest[f"{m}_正确率"]) for m in DEFAULT_MODULES]
+            worst = sorted(accs, key=lambda x: x[1])[0]
+            st.error(f"需攻坚模块：**{worst[0]}**")
+            st.write(f"当前正确率仅为 {worst[1]:.1%}，建议针对性练习。")
             st.markdown('</div>', unsafe_allow_html=True)
 
 # --- B. 趋势分析 ---
@@ -189,7 +187,7 @@ elif menu == "📊 趋势分析":
     st.subheader("📈 历史动态走势")
     if not df.empty:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.plotly_chart(px.line(df, x='日期', y='总分', markers=True, title="总分变化走势"), use_container_width=True)
+        st.plotly_chart(px.line(df, x='日期', y='总分', markers=True), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
         st.dataframe(df.sort_values('日期', ascending=False), use_container_width=True)
 
@@ -200,17 +198,21 @@ elif menu == "📑 单卷详情":
     else:
         st.title("📋 单卷深度复盘")
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        sel = st.selectbox("选择试卷", df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1])
+        options = df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1]
+        sel = st.selectbox("选择卷子", options)
         row = df.iloc[df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist().index(sel)]
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.subheader("🧩 各模块得分明细")
-        cols = st.columns(2)  # 电脑版双列，手机版自动堆叠
+        st.subheader("🧩 模块详细数据")
+        # 电脑端显示为双列布局
+        cols = st.columns(2)
         for i, m in enumerate(DEFAULT_MODULES.keys()):
             with cols[i % 2]:
                 acc = row[f"{m}_正确率"]
+                # 动态视觉反馈
                 bg = "#f0fdf4" if acc >= 0.8 else ("#fef2f2" if acc < 0.6 else "#ffffff")
                 bd = "#22c55e" if acc >= 0.8 else ("#ef4444" if acc < 0.6 else "#3b82f6")
+                
                 st.markdown(f"""
                 <div class="module-detail-card" style="background:{bg}; border-left:5px solid {bd};">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -218,18 +220,18 @@ elif menu == "📑 单卷详情":
                         <b style="color:{bd}; font-size:1.1em;">{int(row[f'{m}_正确数'])} / {int(row[f'{m}_总题数'])}</b>
                     </div>
                     <div style="font-size:0.85em; color:#666; margin-top:5px;">
-                        正确率: {acc:.1%} | 耗时: {int(row[f'{m}_用时'])} min
+                        正确率: {acc:.1%} | 用时: {int(row[f'{m}_用时'])} min
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
 # --- D. 录入成绩 ---
 elif menu == "✏️ 录入成绩":
-    st.subheader("🖋️ 录入考试记录")
-    with st.form("input_form"):
+    st.subheader("🖋️ 录入模考记录")
+    with st.form("exam_input"):
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        paper = c1.text_input("试卷名称", placeholder="如：2025年省考一模")
+        paper = c1.text_input("试卷名称")
         date = c2.date_input("考试日期", datetime.now())
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -242,71 +244,69 @@ elif menu == "✏️ 录入成绩":
                 r1, r2, r3 = st.columns(3)
                 m_tot = r1.number_input("总题", 1, 50, specs['total'], key=f"tot_{m}")
                 m_q = r2.number_input("对题", 0, 50, 0, key=f"q_{m}")
-                m_t = r3.number_input("时间", 0, 150, 10, key=f"t_{m}")
+                m_t = r3.number_input("耗时", 0, 150, 10, key=f"t_{m}")
                 entry[f"{m}_总题数"], entry[f"{m}_正确数"], entry[f"{m}_用时"] = m_tot, m_q, m_t
                 entry[f"{m}_正确率"] = m_q / m_tot
                 tc += m_q; tq += m_tot; tt += m_t; ts += m_q * FIXED_WEIGHT
         
-        if st.form_submit_button("🚀 保存并同步", type="primary"):
-            if not paper: st.error("请输入试卷名称")
+        if st.form_submit_button("🚀 提交存档", type="primary"):
+            if not paper: st.error("请填写卷子名称")
             else:
                 entry.update({"总分": round(ts, 2), "总正确数": tc, "总题数": tq, "总用时": tt})
                 df = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
                 save_data(df, un)
                 st.success("存档成功！")
-                time.sleep(1); st.rerun()
+                time.sleep(0.5); st.rerun()
 
 # --- E. 数据管理 ---
 elif menu == "⚙️ 数据管理":
-    st.subheader("⚙️ 数据维护")
+    st.subheader("⚙️ 数据中心")
     if not df.empty:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         del_list = df.apply(lambda x: f"ID:{x.name} | {x['日期']} | {x['试卷']}", axis=1).tolist()
-        to_del = st.selectbox("选择要删除的单条记录", del_list)
-        if st.button("🗑️ 确认永久删除"):
+        to_del = st.selectbox("选择要彻底删除的记录", del_list)
+        if st.button("🗑️ 确认删除单条数据"):
             idx = int(to_del.split(" | ")[0].split(":")[1])
             df = df.drop(idx).reset_index(drop=True)
             save_data(df, un)
-            st.success("已成功删除记录")
-            time.sleep(0.5); st.rerun()
+            st.success("已删除"); time.sleep(0.5); st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True)
 
-# --- F. 管理后台 (新增修改密码功能) ---
+# --- F. 管理后台 (包含新增的修改密码功能) ---
 elif menu == "🛡️ 管理后台" and role == 'admin':
-    st.title("🛡️ 管理员工作台")
+    st.title("🛡️ 系统管理中心")
     users = load_users()
     
-    # 1. 用户列表展示
+    # 用户概览
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-    st.subheader("👥 用户概览")
-    u_df = pd.DataFrame([{"账号": k, "姓名": v['name'], "角色": v['role']} for k, v in users.items()])
-    st.table(u_df)
+    st.subheader("👥 用户列表")
+    u_data = [{"账号": k, "昵称": v['name'], "角色": v['role']} for k, v in users.items()]
+    st.table(pd.DataFrame(u_data))
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 2. 修改用户密码 (核心更新)
+    # 修改密码模块
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.subheader("🔐 修改用户密码")
-    target_u = st.selectbox("选择目标用户", list(users.keys()))
-    new_p = st.text_input("输入新密码", type="password", key="reset_p")
-    if st.button("⚡ 立即重置密码"):
+    target_u = st.selectbox("选择目标账户", list(users.keys()))
+    new_p = st.text_input("设置新密码", type="password")
+    if st.button("⚡ 确认重置密码"):
         if new_p:
             users[target_u]['password'] = hash_pw(new_p)
             save_users(users)
-            st.success(f"用户 {target_u} 的密码已成功重置！")
-        else: st.warning("密码不能为空")
+            st.success(f"用户 {target_u} 的密码更新成功！")
+        else: st.warning("请先输入新密码")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 3. 删除用户
+    # 移除用户
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.subheader("🚨 危险操作")
-    del_u = st.selectbox("选择要移除的用户", [k for k in users.keys() if k != 'admin'])
-    if st.button("🔥 彻底删除该用户及其数据"):
+    del_u = st.selectbox("选择要注销的用户", [k for k in users.keys() if k != 'admin'])
+    if st.button("🔥 彻底销毁该用户账号"):
         del users[del_u]
         save_users(users)
-        # 可选：物理删除其数据文件
         p = f'data_storage_{del_u}.csv'
         if os.path.exists(p): os.remove(p)
-        st.success(f"用户 {del_u} 已被彻底清理")
+        st.success(f"用户 {del_u} 数据已抹除")
         time.sleep(0.5); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
