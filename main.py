@@ -187,30 +187,39 @@ if not st.session_state.login:
         st.markdown("## 🚀 行测 Pro Max\n#### 模考复盘数字系统")
     with c2:
         st.markdown('<div class="custom-card">',unsafe_allow_html=True)
-        tab1,tab2=st.tabs(["登录","注册"])
-        with tab1:
-            u=st.text_input("账号")
-            p=st.text_input("密码",type="password")
-            if st.button("进入系统",type="primary"):
-                users=load_users()
-                if u in users and users[u]["password"]==hash_pw(p):
-                    st.session_state.login=True
-                    st.session_state.user={"un":u,**users[u]}
-                    st.rerun()
-                else: st.error("账号或密码错误")
-        with tab2:
-            nu=st.text_input("新账号")
-            nn=st.text_input("昵称")
-            np=st.text_input("密码",type="password")
-            if st.button("注册"):
-                users=load_users()
-                if nu in users: st.error("账号已存在")
-                else:
-                    users[nu]={"name":nn,"password":hash_pw(np),"role":"user"}
-                    save_users(users)
-                    st.success("注册成功")
-        st.markdown("</div>",unsafe_allow_html=True)
-    st.stop()
+        tab1, tab2 = st.tabs(["登录","注册"])
+
+with tab1:
+    u = st.text_input("账号", key="login_user")
+    p = st.text_input("密码", type="password", key="login_pwd")
+    if st.button("进入系统", type="primary"):
+        users = load_users()
+        if u in users and users[u]["password"] == hash_pw(p):
+            st.session_state.login = True
+            st.session_state.user = {"un": u, **users[u]}
+            st.rerun()
+        else:
+            st.error("账号或密码错误")
+
+with tab2:
+    nu = st.text_input("新账号", key="reg_user")
+    nn = st.text_input("昵称", key="reg_name")
+    np = st.text_input("密码", type="password", key="reg_pwd")
+    if st.button("注册"):
+        users = load_users()
+        if nu in users:
+            st.error("账号已存在")
+        elif not (nu and nn and np):
+            st.warning("请填写完整信息")
+        else:
+            users[nu] = {
+                "name": nn,
+                "password": hash_pw(np),
+                "role": "user"
+            }
+            save_users(users)
+            st.success("注册成功，请返回登录")
+
 
 # ======================================================
 # 6. 主界面
@@ -330,3 +339,4 @@ elif menu=="✏️ 录入":
 elif menu=="⚙️ 数据":
     if not df.empty:
         st.dataframe(df,use_container_width=True)
+
