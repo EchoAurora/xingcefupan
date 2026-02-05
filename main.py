@@ -127,7 +127,7 @@ if menu == "🏠 数字化看板":
             fig_roi.update_layout(height=200, margin=dict(l=0, r=0, t=0, b=0), showlegend=False)
             st.plotly_chart(fig_roi, use_container_width=True)
 
-# B. 录入 (已更新：单题0.8分逻辑)
+# B. 录入 
 elif menu == "✏️ 录入成绩":
     st.title("🖋️ 录入原始数据")
     with st.form("exam_input"):
@@ -164,7 +164,7 @@ elif menu == "✏️ 录入成绩":
             save_data(df)
             st.success(f"录入成功！本次总分：{total_score:.1f} (单题0.8分)")
             st.rerun()
-# C. 趋势分析 (新需求：所有历史套卷数据分析表)
+# C. 趋势分析 
 elif menu == "📊 趋势分析":
     st.title("📈 历史动态演变")
     if df.empty:
@@ -184,7 +184,7 @@ elif menu == "📊 趋势分析":
                                 use_container_width=True)
 
         with tab2:
-            st.subheader("📚 历史套卷详细数据对比 (类似Excel汇总)")
+            st.subheader("📚 历史套卷详细数据对比")
             # 构建一个汇总表
             summary_df = df[['日期', '试卷', '总分', '总用时']].copy()
             for m in DEFAULT_MODULES.keys():
@@ -194,7 +194,7 @@ elif menu == "📊 趋势分析":
             st.dataframe(summary_df.sort_values(by='日期', ascending=False), use_container_width=True)
             st.caption("注：表格列出了每份试卷的总分、总用时及各细分模块的正确率百分比。")
 
-# D. 单卷复盘 (新需求：加上每个模块答对题数/总题数)
+# D. 单卷复盘 
 elif menu == "📑 单卷详情":
     if df.empty:
         st.info("暂无数据")
@@ -232,7 +232,7 @@ elif menu == "📑 单卷详情":
                 </div>
                 """, unsafe_allow_html=True)
 
-# E. 数据管理 (新需求：加入删除单条数据)
+# E. 数据管理 
 elif menu == "⚙️ 数据管理":
     st.title("⚙️ 数据后台")
     if df.empty:
@@ -257,4 +257,5 @@ elif menu == "⚙️ 数据管理":
         if st.button("🚨 清空所有数据库", type="secondary"):
             if os.path.exists(DB_FILE):
                 os.remove(DB_FILE)
+
                 st.rerun()
