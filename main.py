@@ -58,7 +58,7 @@ st.markdown("""
 # 2. 核心后端逻辑
 # ==========================================
 USERS_FILE = 'users_db.json'
-FIXED_WEIGHT = 0.8
+FIXED_WEIGHT = 0.8  # 按照要求，每题均分0.8分
 
 DEFAULT_MODULES = {
     "政治理论": {"total": 15, "plan": 5},
@@ -105,7 +105,7 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if not st.session_state.logged_in:
     c1, c2 = st.columns([1, 1.2])
     with c1:
-        st.markdown("<br><br><h1>🚀 行测 Pro Max</h1><h3>数字化复盘专家</h3>", unsafe_allow_html=True)
+        st.markdown("<br><br><h1>🚀 行测复盘小助手</h1><h3>数字化复盘专家</h3>", unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         t1, t2 = st.tabs(["🔑 登录", "📝 快速注册"])
@@ -202,12 +202,14 @@ elif menu == "📑 单卷详情":
         sel = st.selectbox("选择卷子", options)
         row = df.iloc[df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist().index(sel)]
         st.markdown('</div>', unsafe_allow_html=True)
-       # 套题总分部分
+
+        # 套题总分 - 指标快报
         st.markdown("# 套题总分")
         c1, c2, c3 = st.columns(3)
         c1.metric("得分", f"{row['总分']:.1f}")
         c2.metric("总正确率", f"{(row['总正确数'] / row['总题数']):.1%}")
         c3.metric("总用时", f"{int(row['总用时'])}min")
+
         st.subheader("🧩 模块详细数据")
         # 电脑端显示为双列布局
         cols = st.columns(2)
@@ -250,9 +252,16 @@ elif menu == "✏️ 录入成绩":
                 m_tot = r1.number_input("总题", 1, 50, specs['total'], key=f"tot_{m}")
                 m_q = r2.number_input("对题", 0, 50, 0, key=f"q_{m}")
                 m_t = r3.number_input("耗时", 0, 150, 10, key=f"t_{m}")
+                
+                # 自动计算逻辑
                 entry[f"{m}_总题数"], entry[f"{m}_正确数"], entry[f"{m}_用时"] = m_tot, m_q, m_t
                 entry[f"{m}_正确率"] = m_q / m_tot
-                tc += m_q; tq += m_tot; tt += m_t; ts += m_q * FIXED_WEIGHT
+                
+                # 汇总数据
+                tc += m_q  # 总正确数
+                tq += m_tot  # 总题数
+                tt += m_t  # 总耗时
+                ts += m_q * FIXED_WEIGHT  # 总分 (正确数 * 0.8)
         
         if st.form_submit_button("🚀 提交存档", type="primary"):
             if not paper: st.error("请填写卷子名称")
@@ -278,19 +287,17 @@ elif menu == "⚙️ 数据管理":
         st.markdown('</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True)
 
-# --- F. 管理后台 (包含新增的修改密码功能) ---
+# --- F. 管理后台 ---
 elif menu == "🛡️ 管理后台" and role == 'admin':
     st.title("🛡️ 系统管理中心")
     users = load_users()
     
-    # 用户概览
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.subheader("👥 用户列表")
     u_data = [{"账号": k, "昵称": v['name'], "角色": v['role']} for k, v in users.items()]
     st.table(pd.DataFrame(u_data))
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 修改密码模块
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.subheader("🔐 修改用户密码")
     target_u = st.selectbox("选择目标账户", list(users.keys()))
@@ -303,7 +310,6 @@ elif menu == "🛡️ 管理后台" and role == 'admin':
         else: st.warning("请先输入新密码")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 移除用户
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.subheader("🚨 危险操作")
     del_u = st.selectbox("选择要注销的用户", [k for k in users.keys() if k != 'admin'])
@@ -315,4 +321,3 @@ elif menu == "🛡️ 管理后台" and role == 'admin':
         st.success(f"用户 {del_u} 数据已抹除")
         time.sleep(0.5); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
-
