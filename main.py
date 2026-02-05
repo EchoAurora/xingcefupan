@@ -2,63 +2,95 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import os, json, hashlib, time
 from datetime import datetime
+import os
+import json
+import hashlib
+import time
 
 # ======================================================
-# 1. 页面配置
+# 1. 页面配置（手机友好）
 # ======================================================
 st.set_page_config(
     page_title="行测 Pro Max",
-    page_icon="🚀",
     layout="wide",
+    page_icon="🚀",
     initial_sidebar_state="collapsed"
 )
 
 # ======================================================
-# 2. 全局 UI 样式
+# 2. 全局 UI 样式（重点）
 # ======================================================
 st.markdown("""
 <style>
 html, body, [class*="css"] {
     font-family: "Inter","PingFang SC","Microsoft YaHei",sans-serif;
 }
+
 .stApp {
-    background: linear-gradient(180deg,#f8fafc,#f1f5f9);
+    background: linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);
 }
+
+/* 卡片 */
 .custom-card {
-    background:#fff;
-    padding:1.4rem;
-    border-radius:14px;
-    box-shadow:0 10px 25px rgba(0,0,0,.06);
-    margin-bottom:1.2rem;
+    background: #ffffff;
+    padding: 1.4rem 1.6rem;
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+    margin-bottom: 1.2rem;
 }
+
+/* 模块卡片 */
 .module-detail-card {
-    background:#fff;
-    padding:14px 18px;
-    border-radius:12px;
-    margin-bottom:12px;
-    box-shadow:0 4px 14px rgba(0,0,0,.05);
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    border-left:6px solid #e5e7eb;
+    background: #ffffff;
+    padding: 14px 18px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 6px solid #e5e7eb;
+    transition: all .25s ease;
 }
-.module-name {font-weight:700;color:#0f172a}
-.module-meta {font-size:.8rem;color:#64748b}
-.module-score-right {font-size:1.2rem;font-weight:800}
+.module-detail-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 26px rgba(0,0,0,0.08);
+}
+
+.module-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+.module-meta {
+    font-size: .8rem;
+    color: #64748b;
+}
+.module-score-right {
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+
+/* 分区标题 */
 .section-divider {
-    background:linear-gradient(90deg,#e0f2fe,#f8fafc);
-    padding:10px 16px;
-    border-radius:10px;
-    margin:26px 0 16px;
-    font-weight:700;
-    border-left:6px solid #3b82f6;
+    background: linear-gradient(90deg,#e0f2fe,#f8fafc);
+    padding: 10px 16px;
+    border-radius: 10px;
+    margin: 26px 0 16px;
+    font-weight: 700;
+    color: #0f172a;
+    border-left: 6px solid #3b82f6;
 }
-.status-green{border-left-color:#22c55e!important}
-.status-red{border-left-color:#ef4444!important}
-.status-blue{border-left-color:#3b82f6!important}
+
+/* 状态色 */
+.status-green { border-left-color:#22c55e!important; }
+.status-red { border-left-color:#ef4444!important; }
+.status-blue { border-left-color:#3b82f6!important; }
+
+/* 移动端 */
 @media (max-width:768px){
+    .custom-card{padding:1rem}
     .module-detail-card{flex-direction:column;align-items:flex-start}
     .module-score-right{align-self:flex-end}
 }
@@ -144,80 +176,64 @@ def render_card(name, correct, total, time_, acc):
     """
 
 # ======================================================
-# 5. 登录态初始化
+# 5. 登录
 # ======================================================
 if "login" not in st.session_state:
-    st.session_state.login = False
+    st.session_state.login=False
 
-# ======================================================
-# 6. 登录页面
-# ======================================================
 if not st.session_state.login:
-    c1,c2 = st.columns([1,1.2])
+    c1,c2=st.columns([1,1.2])
     with c1:
-        st.markdown("## 🚀 行测 Pro Max\n#### 模考复盘系统")
+        st.markdown("## 🚀 行测 Pro Max\n#### 模考复盘数字系统")
     with c2:
         st.markdown('<div class="custom-card">',unsafe_allow_html=True)
-        tab1,tab2 = st.tabs(["登录","注册"])
-
+        tab1,tab2=st.tabs(["登录","注册"])
         with tab1:
-            u = st.text_input("账号", key="login_user")
-            p = st.text_input("密码", type="password", key="login_pwd")
-            if st.button("进入系统", type="primary", key="login_btn"):
-                users = load_users()
+            u=st.text_input("账号")
+            p=st.text_input("密码",type="password")
+            if st.button("进入系统",type="primary"):
+                users=load_users()
                 if u in users and users[u]["password"]==hash_pw(p):
                     st.session_state.login=True
                     st.session_state.user={"un":u,**users[u]}
                     st.rerun()
-                else:
-                    st.error("账号或密码错误")
-
+                else: st.error("账号或密码错误")
         with tab2:
-            nu = st.text_input("新账号", key="reg_user")
-            nn = st.text_input("昵称", key="reg_name")
-            np = st.text_input("密码", type="password", key="reg_pwd")
-            if st.button("注册", key="reg_btn"):
-                users = load_users()
-                if nu in users:
-                    st.error("账号已存在")
-                elif not (nu and nn and np):
-                    st.warning("请填写完整信息")
+            nu=st.text_input("新账号")
+            nn=st.text_input("昵称")
+            np=st.text_input("密码",type="password")
+            if st.button("注册"):
+                users=load_users()
+                if nu in users: st.error("账号已存在")
                 else:
                     users[nu]={"name":nn,"password":hash_pw(np),"role":"user"}
                     save_users(users)
-                    st.success("注册成功，请登录")
+                    st.success("注册成功")
         st.markdown("</div>",unsafe_allow_html=True)
     st.stop()
 
 # ======================================================
-# 7. 登录态保护（关键）
+# 6. 主界面
 # ======================================================
-if "user" not in st.session_state:
-    st.session_state.login=False
-    st.rerun()
+un=st.session_state.user["un"]
+role=st.session_state.user["role"]
+df=load_data(un)
 
-un = st.session_state.user["un"]
-role = st.session_state.user["role"]
-df = load_data(un)
-
-# ======================================================
-# 8. 侧边栏
-# ======================================================
 with st.sidebar:
     st.markdown(f"### 👋 {st.session_state.user['name']}")
-    menu = st.radio("导航", ["🏠 看板","📊 趋势","📑 单卷","✏️ 录入","⚙️ 数据"])
+    menu=st.radio("导航",["🏠 看板","📊 趋势","📑 单卷","✏️ 录入","⚙️ 数据"])
+    if role=="admin": st.radio("",["🛡️ 管理"])
     st.divider()
     if st.button("退出登录"):
-        st.session_state.clear()
+        st.session_state.login=False
         st.rerun()
 
 # ======================================================
-# 9. 看板
+# 7. 看板
 # ======================================================
 if menu=="🏠 看板":
     st.title("📊 学习看板")
-    if df.empty:
-        st.info("暂无数据")
+    if df.empty: st.info("暂无数据")
     else:
         latest=df.iloc[-1]
         st.markdown('<div class="custom-card">',unsafe_allow_html=True)
@@ -237,9 +253,10 @@ if menu=="🏠 看板":
         st.plotly_chart(fig,use_container_width=True)
 
 # ======================================================
-# 10. 趋势
+# 8. 趋势
 # ======================================================
 elif menu=="📊 趋势":
+    st.title("📈 成绩趋势")
     if df.empty: st.info("暂无数据")
     else:
         df["显示"]=df.apply(lambda x:f"{x['日期']}\n{x['试卷']}",axis=1)
@@ -248,7 +265,7 @@ elif menu=="📊 趋势":
         st.plotly_chart(fig,use_container_width=True)
 
 # ======================================================
-# 11. 单卷
+# 9. 单卷
 # ======================================================
 elif menu=="📑 单卷":
     if df.empty: st.info("暂无数据")
@@ -270,20 +287,21 @@ elif menu=="📑 单卷":
                     ),unsafe_allow_html=True)
 
 # ======================================================
-# 12. 录入
+# 10. 录入
 # ======================================================
 elif menu=="✏️ 录入":
-    with st.form("input_form"):
-        paper=st.text_input("试卷名称", key="paper")
-        date=st.date_input("日期", key="date")
+    st.subheader("✍️ 录入成绩")
+    with st.form("f"):
+        paper=st.text_input("试卷名称")
+        date=st.date_input("日期")
         entry={"日期":date,"试卷":paper}
         tc=tq=tt=ts=0
         for m,cfg in MODULE_STRUCTURE.items():
             st.markdown(f"**{m}**")
             if cfg["type"]=="direct":
                 c1,c2=st.columns(2)
-                q=c1.number_input("对题",0,cfg["total"],0,key=f"q_{m}")
-                t=c2.number_input("用时",0,200,5,key=f"t_{m}")
+                q=c1.number_input("对题",0,cfg["total"],0,key=m)
+                t=c2.number_input("用时",0,200,5,key=m+"t")
                 entry[f"{m}_总题数"]=cfg["total"]
                 entry[f"{m}_正确数"]=q
                 entry[f"{m}_用时"]=t
@@ -291,8 +309,8 @@ elif menu=="✏️ 录入":
                 tc+=q; tq+=cfg["total"]; tt+=t; ts+=q*FIXED_WEIGHT
             else:
                 for sm,stot in cfg["subs"].items():
-                    q=st.number_input(f"{sm} 对题",0,stot,0,key=f"q_{sm}")
-                    t=st.number_input(f"{sm} 用时",0,200,5,key=f"t_{sm}")
+                    q=st.number_input(f"{sm} 对题",0,stot,0,key=sm)
+                    t=st.number_input(f"{sm} 用时",0,200,5,key=sm+"t")
                     entry[f"{sm}_总题数"]=stot
                     entry[f"{sm}_正确数"]=q
                     entry[f"{sm}_用时"]=t
@@ -300,14 +318,14 @@ elif menu=="✏️ 录入":
                     tc+=q; tq+=stot; tt+=t; ts+=q*FIXED_WEIGHT
         if st.form_submit_button("保存"):
             entry.update({"总分":round(ts,2),"总正确数":tc,"总题数":tq,"总用时":tt})
-            df=pd.concat([df,pd.DataFrame([entry])],ignore_index=True)
+            df=pd.concat([df,pd.DataFrame([entry])])
             save_data(df,un)
             st.success("保存成功")
             time.sleep(1)
             st.rerun()
 
 # ======================================================
-# 13. 数据管理
+# 11. 数据
 # ======================================================
 elif menu=="⚙️ 数据":
     if not df.empty:
