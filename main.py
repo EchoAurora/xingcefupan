@@ -11,7 +11,7 @@ import streamlit_authenticator as stauth
 credentials = {
     'usernames': {
         'admin': {
-            'name': '管理员',
+            'name': 'admin',
             'password': '123'  # 建议部署后在代码中修改
         },
         'user1': {
@@ -223,3 +223,4 @@ elif st.session_state.get("authentication_status") is False:
     st.error('❌ 用户名或密码错误')
 elif st.session_state.get("authentication_status") is None:
     st.warning('⚠️ 请先登录以访问您的数据')
+
