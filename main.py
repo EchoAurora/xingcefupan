@@ -11,14 +11,11 @@ import time
 # ==========================================
 # 1. 全局配置与响应式 UI 样式
 # ==========================================
-st.set_page_config(page_title="行测复盘小助手", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="行测 Pro Max", layout="wide", page_icon="🚀")
 
 st.markdown("""
     <style>
-    /* 基础背景 */
     .stApp { background: #f8f9fa; }
-    
-    /* 统一的卡片容器 */
     .custom-card {
         background: white;
         padding: 1.5rem;
@@ -26,31 +23,11 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         margin-bottom: 1rem;
     }
-
-    /* KPI 指标样式 */
-    .m-container { text-align: center; padding: 5px; }
-    .m-value { 
-        font-size: 2rem; 
-        font-weight: 800; 
-        color: #1e3a8a;
-        line-height: 1.2;
-    }
-    .m-label { color: #64748b; font-size: 0.85rem; margin-top: 5px; }
-
-    /* 模块详情卡片样式 (单卷详情专用) */
     .module-detail-card {
-        padding: 15px; 
-        border-radius: 10px; 
-        margin-bottom: 12px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        padding: 15px; border-radius: 10px; margin-bottom: 12px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03); border-left: 5px solid #3b82f6;
     }
-
-    /* 按钮适配 */
     .stButton>button { width: 100%; border-radius: 8px; height: 3em; }
-    
-    @media (max-width: 640px) {
-        .m-value { font-size: 1.5rem; }
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -58,20 +35,34 @@ st.markdown("""
 # 2. 核心后端逻辑
 # ==========================================
 USERS_FILE = 'users_db.json'
-FIXED_WEIGHT = 0.8  # 按照要求，每题均分0.8分
+FIXED_WEIGHT = 0.8
+GOAL_SCORE = 75.0
 
-DEFAULT_MODULES = {
-    "政治理论": {"total": 15, "plan": 5},
-    "常识判断": {"total": 15, "plan": 5},
-    "言语-逻辑填空": {"total": 10, "plan": 9},
-    "言语-片段阅读": {"total": 15, "plan": 9},
-    "数量关系": {"total": 15, "plan": 25},
-    "判断-图形推理": {"total": 5, "plan": 5},
-    "判断-定义判断": {"total": 10, "plan": 10},
-    "判断-类比推理": {"total": 10, "plan": 5},
-    "判断-逻辑判断": {"total": 10, "plan": 15},
-    "资料分析": {"total": 20, "plan": 25}
+# 定义模块顺序与层级
+MODULE_STRUCTURE = {
+    "政治理论": {"type": "direct", "total": 15},
+    "常识判断": {"type": "direct", "total": 15},
+    "言语理解": {
+        "type": "parent",
+        "subs": {"言语-逻辑填空": 10, "言语-片段阅读": 15}
+    },
+    "数量关系": {"type": "direct", "total": 15},
+    "判断推理": {
+        "type": "parent",
+        "subs": {"判断-图形推理": 5, "判断-定义判断": 10, "判断-类比推理": 10, "判断-逻辑判断": 10}
+    },
+    "资料分析": {"type": "direct", "total": 20}
 }
+
+# 获取所有底层的叶子模块列表
+def get_leaf_modules():
+    leaves = []
+    for k, v in MODULE_STRUCTURE.items():
+        if v["type"] == "direct": leaves.append(k)
+        else: leaves.extend(v["subs"].keys())
+    return leaves
+
+LEAF_MODULES = get_leaf_modules()
 
 def hash_pw(pw): return hashlib.sha256(str(pw).encode()).hexdigest()
 
@@ -105,7 +96,7 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if not st.session_state.logged_in:
     c1, c2 = st.columns([1, 1.2])
     with c1:
-        st.markdown("<br><br><h1>🚀 行测复盘小助手</h1><h3>数字化复盘专家</h3>", unsafe_allow_html=True)
+        st.markdown("<br><br><h1>🚀 行测 Pro Max</h1><h3>数字化复盘专家</h3>", unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         t1, t2 = st.tabs(["🔑 登录", "📝 快速注册"])
@@ -135,7 +126,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# 4. 导航控制
+# 4. 核心功能导航
 # ==========================================
 un = st.session_state.u_info['un']
 role = st.session_state.u_info['role']
@@ -143,44 +134,47 @@ df = load_data(un)
 
 with st.sidebar:
     st.markdown(f"### 👋 {st.session_state.u_info['name']}")
-    menu_list = ["🏠 复盘首页", "📊 趋势分析", "📑 单卷详情", "✏️ 录入成绩", "⚙️ 数据管理"]
-    if role == 'admin': menu_list.append("🛡️ 管理后台")
-    menu = st.radio("功能", menu_list)
-    st.divider()
+    menu = st.radio("导航", ["🏠 数字化看板", "📊 趋势分析", "📑 单卷详情", "✏️ 录入成绩", "⚙️ 数据管理"] + (["🛡️ 管理后台"] if role == 'admin' else []))
     if st.button("安全退出"):
         st.session_state.logged_in = False
         st.rerun()
 
-# --- A. 复盘首页 ---
-if menu == "🏠 复盘首页":
-    st.title("📊 备考驾驶舱")
+# --- A. 数字化看板 ---
+if menu == "🏠 数字化看板":
+    st.title("📊 数字化深度诊断")
     if df.empty:
-        st.info("欢迎！请先录入一次成绩。")
+        st.info("💡 尚未录入数据，请前往'录入成绩'开始第一篇模考吧！")
     else:
         latest = df.iloc[-1]
-        k1, k2, k3, k4 = st.columns(4)
-        with k1: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{latest["总分"]:.1f}</div><div class="m-label">最新得分</div></div>', unsafe_allow_html=True)
-        with k2: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{latest["总正确数"]}/{latest["总题数"]}</div><div class="m-label">答对题数</div></div>', unsafe_allow_html=True)
-        with k3: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{int(latest["总用时"])}<small>m</small></div><div class="m-label">总用时</div></div>', unsafe_allow_html=True)
-        with k4: st.markdown(f'<div class="custom-card m-container"><div class="m-value">{len(df)}</div><div class="m-label">练习总数</div></div>', unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1.5, 1])
-        with col1:
-            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-            st.subheader("🕸️ 能力图谱")
-            cats = list(DEFAULT_MODULES.keys())
-            fig = go.Figure(go.Scatterpolar(r=[latest[f"{m}_正确率"] for m in cats], theta=cats, fill='toself'))
-            fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=350, margin=dict(l=40,r=40,t=40,b=40))
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-            st.subheader("💡 核心建议")
-            accs = [(m, latest[f"{m}_正确率"]) for m in DEFAULT_MODULES]
-            worst = sorted(accs, key=lambda x: x[1])[0]
-            st.error(f"需攻坚模块：**{worst[0]}**")
-            st.write(f"当前正确率仅为 {worst[1]:.1%}，建议针对性练习。")
-            st.markdown('</div>', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            diff = latest['总分'] - df.iloc[-2]['总分'] if len(df) > 1 else 0
+            st.metric("本次总分", f"{latest['总分']:.1f}", delta=f"{diff:.1f}" if len(df)>1 else None)
+        with c2:
+            st.metric("全卷正确率", f"{(latest['总正确数'] / latest['总题数']):.1%}")
+        with c3:
+            st.metric("进面距离", f"{max(GOAL_SCORE - latest['总分'], 0):.1f}", delta_color="inverse")
+        with c4:
+            st.metric("总用时", f"{int(latest['总用时'])} min")
+        
+        st.divider()
+        l_col, r_col = st.columns([1, 1])
+        with l_col:
+            st.subheader("🕸️ 能力模型诊断")
+            fig = go.Figure(go.Scatterpolar(r=[latest[f"{m}_正确率"] for m in LEAF_MODULES], theta=LEAF_MODULES, fill='toself'))
+            fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1])), height=380, margin=dict(l=50,r=50,t=30,b=30))
+            st.plotly_chart(fig, use_container_width=True)
+        with r_col:
+            st.subheader("⏳ 时间性价比 (每分钟得分)")
+            roi_data = []
+            for m in LEAF_MODULES:
+                score = latest[f"{m}_正确数"] * FIXED_WEIGHT
+                time_cost = max(latest[f"{m}_用时"], 1)
+                roi_data.append({"模块": m, "性价比": round(score / time_cost, 2)})
+            roi_df = pd.DataFrame(roi_data).sort_values("性价比", ascending=False)
+            fig_roi = px.bar(roi_df, x='性价比', y='模块', orientation='h', color='性价比', color_continuous_scale='GnBu')
+            fig_roi.update_layout(height=350, showlegend=False, yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig_roi, use_container_width=True)
 
 # --- B. 趋势分析 ---
 elif menu == "📊 趋势分析":
@@ -191,19 +185,16 @@ elif menu == "📊 趋势分析":
         st.markdown('</div>', unsafe_allow_html=True)
         st.dataframe(df.sort_values('日期', ascending=False), use_container_width=True)
 
-# --- C. 单卷详情 (适配电脑双列与手机堆叠) ---
+# --- C. 单卷详情 ---
 elif menu == "📑 单卷详情":
-    if df.empty:
-        st.info("暂无数据")
+    if df.empty: st.info("暂无数据")
     else:
         st.title("📋 单卷深度复盘")
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        options = df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1]
-        sel = st.selectbox("选择卷子", options)
+        sel = st.selectbox("选择卷子", df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1])
         row = df.iloc[df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist().index(sel)]
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 套题总分 - 指标快报
         st.markdown("# 套题总分")
         c1, c2, c3 = st.columns(3)
         c1.metric("得分", f"{row['总分']:.1f}")
@@ -211,57 +202,52 @@ elif menu == "📑 单卷详情":
         c3.metric("总用时", f"{int(row['总用时'])}min")
 
         st.subheader("🧩 模块详细数据")
-        # 电脑端显示为双列布局
         cols = st.columns(2)
-        for i, m in enumerate(DEFAULT_MODULES.keys()):
+        for i, m in enumerate(LEAF_MODULES):
             with cols[i % 2]:
                 acc = row[f"{m}_正确率"]
-                # 动态视觉反馈
                 bg = "#f0fdf4" if acc >= 0.8 else ("#fef2f2" if acc < 0.6 else "#ffffff")
-                bd = "#22c55e" if acc >= 0.8 else ("#ef4444" if acc < 0.6 else "#3b82f6")
-                
-                st.markdown(f"""
-                <div class="module-detail-card" style="background:{bg}; border-left:5px solid {bd};">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <b style="color:#333;">{m}</b>
-                        <b style="color:{bd}; font-size:1.1em;">{int(row[f'{m}_正确数'])} / {int(row[f'{m}_总题数'])}</b>
-                    </div>
-                    <div style="font-size:0.85em; color:#666; margin-top:5px;">
-                        正确率: {acc:.1%} | 用时: {int(row[f'{m}_用时'])} min
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"""<div class="module-detail-card" style="background:{bg};">
+                    <b>{m}</b><br>对题：{int(row[f'{m}_正确数'])} / {int(row[f'{m}_总题数'])} | 用时：{int(row[f'{m}_用时'])}min
+                </div>""", unsafe_allow_html=True)
 
-# --- D. 录入成绩 ---
+# --- D. 录入成绩 (支持二级目录) ---
 elif menu == "✏️ 录入成绩":
     st.subheader("🖋️ 录入模考记录")
-    with st.form("exam_input"):
+    with st.form("input_form"):
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷名称")
-        date = c2.date_input("考试日期", datetime.now())
+        date = c2.date_input("日期", datetime.now())
         st.markdown('</div>', unsafe_allow_html=True)
-        
+
         entry = {"日期": date, "试卷": paper}
         tc, tq, tt, ts = 0, 0, 0, 0
-        grid = st.columns(2)
-        for i, (m, specs) in enumerate(DEFAULT_MODULES.items()):
-            with grid[i % 2]:
-                st.markdown(f"**{m}**")
-                r1, r2, r3 = st.columns(3)
-                m_tot = r1.number_input("总题", 1, 50, specs['total'], key=f"tot_{m}")
-                m_q = r2.number_input("对题", 0, 50, 0, key=f"q_{m}")
-                m_t = r3.number_input("耗时", 0, 150, 10, key=f"t_{m}")
-                
-                # 自动计算逻辑
-                entry[f"{m}_总题数"], entry[f"{m}_正确数"], entry[f"{m}_用时"] = m_tot, m_q, m_t
-                entry[f"{m}_正确率"] = m_q / m_tot
-                
-                # 汇总数据
-                tc += m_q  # 总正确数
-                tq += m_tot  # 总题数
-                tt += m_t  # 总耗时
-                ts += m_q * FIXED_WEIGHT  # 总分 (正确数 * 0.8)
+
+        # 按顺序循环一级目录
+        for main_m, config in MODULE_STRUCTURE.items():
+            st.markdown(f"### 📍 {main_m}")
+            if config["type"] == "direct":
+                # 一级直接录入（如政治、常识）
+                cols = st.columns(2)
+                m_q = cols[0].number_input(f"{main_m}-对题", 0, config["total"], 0, key=f"q_{main_m}")
+                m_t = cols[1].number_input(f"{main_m}-用时", 0, 180, 5, key=f"t_{main_m}")
+                entry[f"{main_m}_总题数"], entry[f"{main_m}_正确数"], entry[f"{main_m}_用时"] = config["total"], m_q, m_t
+                entry[f"{main_m}_正确率"] = m_q / config["total"]
+                tc += m_q; tq += config["total"]; tt += m_t; ts += m_q * FIXED_WEIGHT
+            else:
+                # 二级目录展开（如言语、判断）
+                with st.expander(f"展开录入 {main_m} 子项", expanded=False):
+                    sub_cols = st.columns(2)
+                    for idx, (sub_m, sub_tot) in enumerate(config["subs"].items()):
+                        target_col = sub_cols[idx % 2]
+                        target_col.markdown(f"**{sub_m}**")
+                        sq = target_col.number_input("对题", 0, sub_tot, 0, key=f"q_{sub_m}")
+                        st_time = target_col.number_input("用时", 0, 180, 10, key=f"t_{sub_m}")
+                        entry[f"{sub_m}_总题数"], entry[f"{sub_m}_正确数"], entry[f"{sub_m}_用时"] = sub_tot, sq, st_time
+                        entry[f"{sub_m}_正确率"] = sq / sub_tot
+                        tc += sq; tq += sub_tot; tt += st_time; ts += sq * FIXED_WEIGHT
+            st.divider()
         
         if st.form_submit_button("🚀 提交存档", type="primary"):
             if not paper: st.error("请填写卷子名称")
@@ -271,7 +257,6 @@ elif menu == "✏️ 录入成绩":
                 save_data(df, un)
                 st.success("存档成功！")
                 time.sleep(0.5); st.rerun()
-
 # --- E. 数据管理 ---
 elif menu == "⚙️ 数据管理":
     st.subheader("⚙️ 数据中心")
@@ -321,3 +306,4 @@ elif menu == "🛡️ 管理后台" and role == 'admin':
         st.success(f"用户 {del_u} 数据已抹除")
         time.sleep(0.5); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
