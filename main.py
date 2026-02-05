@@ -185,16 +185,19 @@ elif menu == "📊 趋势分析":
         st.markdown('</div>', unsafe_allow_html=True)
         st.dataframe(df.sort_values('日期', ascending=False), use_container_width=True)
 
-# --- C. 单卷详情 ---
+# --- C. 单卷详情 (适配电脑双列与手机堆叠) ---
 elif menu == "📑 单卷详情":
-    if df.empty: st.info("暂无数据")
+    if df.empty:
+        st.info("暂无数据")
     else:
         st.title("📋 单卷深度复盘")
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        sel = st.selectbox("选择卷子", df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1])
+        options = df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1]
+        sel = st.selectbox("选择卷子", options)
         row = df.iloc[df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist().index(sel)]
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # 套题总分 - 指标快报
         st.markdown("# 套题总分")
         c1, c2, c3 = st.columns(3)
         c1.metric("得分", f"{row['总分']:.1f}")
@@ -202,52 +205,57 @@ elif menu == "📑 单卷详情":
         c3.metric("总用时", f"{int(row['总用时'])}min")
 
         st.subheader("🧩 模块详细数据")
+        # 电脑端显示为双列布局
         cols = st.columns(2)
-        for i, m in enumerate(LEAF_MODULES):
+        for i, m in enumerate(DEFAULT_MODULES.keys()):
             with cols[i % 2]:
                 acc = row[f"{m}_正确率"]
+                # 动态视觉反馈
                 bg = "#f0fdf4" if acc >= 0.8 else ("#fef2f2" if acc < 0.6 else "#ffffff")
-                st.markdown(f"""<div class="module-detail-card" style="background:{bg};">
-                    <b>{m}</b><br>对题：{int(row[f'{m}_正确数'])} / {int(row[f'{m}_总题数'])} | 用时：{int(row[f'{m}_用时'])}min
-                </div>""", unsafe_allow_html=True)
+                bd = "#22c55e" if acc >= 0.8 else ("#ef4444" if acc < 0.6 else "#3b82f6")
+                
+                st.markdown(f"""
+                <div class="module-detail-card" style="background:{bg}; border-left:5px solid {bd};">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="color:#333;">{m}</b>
+                        <b style="color:{bd}; font-size:1.1em;">{int(row[f'{m}_正确数'])} / {int(row[f'{m}_总题数'])}</b>
+                    </div>
+                    <div style="font-size:0.85em; color:#666; margin-top:5px;">
+                        正确率: {acc:.1%} | 用时: {int(row[f'{m}_用时'])} min
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-# --- D. 录入成绩 (支持二级目录) ---
+# --- D. 录入成绩 ---
 elif menu == "✏️ 录入成绩":
     st.subheader("🖋️ 录入模考记录")
-    with st.form("input_form"):
+    with st.form("exam_input"):
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷名称")
-        date = c2.date_input("日期", datetime.now())
+        date = c2.date_input("考试日期", datetime.now())
         st.markdown('</div>', unsafe_allow_html=True)
-
+        
         entry = {"日期": date, "试卷": paper}
         tc, tq, tt, ts = 0, 0, 0, 0
-
-        # 按顺序循环一级目录
-        for main_m, config in MODULE_STRUCTURE.items():
-            st.markdown(f"### 📍 {main_m}")
-            if config["type"] == "direct":
-                # 一级直接录入（如政治、常识）
-                cols = st.columns(2)
-                m_q = cols[0].number_input(f"{main_m}-对题", 0, config["total"], 0, key=f"q_{main_m}")
-                m_t = cols[1].number_input(f"{main_m}-用时", 0, 180, 5, key=f"t_{main_m}")
-                entry[f"{main_m}_总题数"], entry[f"{main_m}_正确数"], entry[f"{main_m}_用时"] = config["total"], m_q, m_t
-                entry[f"{main_m}_正确率"] = m_q / config["total"]
-                tc += m_q; tq += config["total"]; tt += m_t; ts += m_q * FIXED_WEIGHT
-            else:
-                # 二级目录展开（如言语、判断）
-                with st.expander(f"展开录入 {main_m} 子项", expanded=False):
-                    sub_cols = st.columns(2)
-                    for idx, (sub_m, sub_tot) in enumerate(config["subs"].items()):
-                        target_col = sub_cols[idx % 2]
-                        target_col.markdown(f"**{sub_m}**")
-                        sq = target_col.number_input("对题", 0, sub_tot, 0, key=f"q_{sub_m}")
-                        st_time = target_col.number_input("用时", 0, 180, 10, key=f"t_{sub_m}")
-                        entry[f"{sub_m}_总题数"], entry[f"{sub_m}_正确数"], entry[f"{sub_m}_用时"] = sub_tot, sq, st_time
-                        entry[f"{sub_m}_正确率"] = sq / sub_tot
-                        tc += sq; tq += sub_tot; tt += st_time; ts += sq * FIXED_WEIGHT
-            st.divider()
+        grid = st.columns(2)
+        for i, (m, specs) in enumerate(DEFAULT_MODULES.items()):
+            with grid[i % 2]:
+                st.markdown(f"**{m}**")
+                r1, r2, r3 = st.columns(3)
+                m_tot = r1.number_input("总题", 1, 50, specs['total'], key=f"tot_{m}")
+                m_q = r2.number_input("对题", 0, 50, 0, key=f"q_{m}")
+                m_t = r3.number_input("耗时", 0, 150, 10, key=f"t_{m}")
+                
+                # 自动计算逻辑
+                entry[f"{m}_总题数"], entry[f"{m}_正确数"], entry[f"{m}_用时"] = m_tot, m_q, m_t
+                entry[f"{m}_正确率"] = m_q / m_tot
+                
+                # 汇总数据
+                tc += m_q  # 总正确数
+                tq += m_tot  # 总题数
+                tt += m_t  # 总耗时
+                ts += m_q * FIXED_WEIGHT  # 总分 (正确数 * 0.8)
         
         if st.form_submit_button("🚀 提交存档", type="primary"):
             if not paper: st.error("请填写卷子名称")
@@ -257,6 +265,7 @@ elif menu == "✏️ 录入成绩":
                 save_data(df, un)
                 st.success("存档成功！")
                 time.sleep(0.5); st.rerun()
+
 # --- E. 数据管理 ---
 elif menu == "⚙️ 数据管理":
     st.subheader("⚙️ 数据中心")
@@ -306,4 +315,5 @@ elif menu == "🛡️ 管理后台" and role == 'admin':
         st.success(f"用户 {del_u} 数据已抹除")
         time.sleep(0.5); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
