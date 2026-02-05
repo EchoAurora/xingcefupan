@@ -202,7 +202,12 @@ elif menu == "📑 单卷详情":
         sel = st.selectbox("选择卷子", options)
         row = df.iloc[df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist().index(sel)]
         st.markdown('</div>', unsafe_allow_html=True)
-
+       # 套题总分部分
+        st.markdown("# 套题总分")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("得分", f"{row['总分']:.1f}")
+        c2.metric("总正确率", f"{(row['总正确数'] / row['总题数']):.1%}")
+        c3.metric("总用时", f"{int(row['总用时'])}min")
         st.subheader("🧩 模块详细数据")
         # 电脑端显示为双列布局
         cols = st.columns(2)
@@ -310,3 +315,4 @@ elif menu == "🛡️ 管理后台" and role == 'admin':
         st.success(f"用户 {del_u} 数据已抹除")
         time.sleep(0.5); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
