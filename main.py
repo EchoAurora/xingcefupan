@@ -1505,7 +1505,6 @@ elif menu == "✅ 今日任务":
             time.sleep(0.4)
             st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
-
 # ------------------- 本周训练计划 -------------------
 elif menu == "🗓️ 本周训练计划":
     st.markdown("""
@@ -1527,7 +1526,7 @@ elif menu == "🗓️ 本周训练计划":
         st.caption("你可以在【策略设置】里调上限（数量秒 / 资料分钟 / 逻辑秒）与放弃策略。")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ---------- 7 天任务清单 ----------
+        # ---------- 7 天任务清单（只读展示，每天展开看） ----------
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='mini-header'>7 天任务清单</div>", unsafe_allow_html=True)
         for d in wp:
@@ -1535,14 +1534,30 @@ elif menu == "🗓️ 本周训练计划":
                 st.markdown("\n".join([f"- {x}" for x in d["任务"]]))
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ---------- 导出周计划（原有功能） ----------
-        with st.expander("📤 导出周计划（复制到备忘录）", expanded=False):
-            lines = ["## 本周训练计划（自动生成）"]
-            for d in wp:
-                lines.append(f"\n### {d['日期']}（重点：{d['重点模块']}）")
-                for t in d["任务"]:
-                    lines.append(f"- {t}")
-            st.code("\n".join(lines), language="markdown")
+        # ---------- 可编辑：导出 / 自定义周计划 ----------
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='mini-header'>📤 导出 / 自定义本周训练计划</div>", unsafe_allow_html=True)
+        st.caption(
+            "下面是系统根据你最近 3 套卷自动生成的本周训练计划。"
+            "你可以直接在文本框中对内容进行增删改，调整顺序或补充备注后，再复制保存。"
+        )
+
+        # 把自动生成的周计划拼成一段 Markdown 文本
+        lines = ["## 本周训练计划（自动生成，可自行修改）"]
+        for d in wp:
+            lines.append(f"\n### {d['日期']}（重点：{d['重点模块']}）")
+            for t in d["任务"]:
+                lines.append(f"- {t}")
+        weekly_plan_md = "\n".join(lines)
+
+        # 文本框里可以随便改
+        editable_weekly_plan = st.text_area(
+            "本周训练计划（可以在这里自由修改后再复制）",
+            value=weekly_plan_md,
+            height=420,
+        )
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------- 新增：行测数据复盘 GPT Prompt，一键复制 ----------
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -1550,7 +1565,7 @@ elif menu == "🗓️ 本周训练计划":
 
     st.caption("步骤：在本网站导出历史数据 → 上传到 GPT → 直接复制下方 Prompt 使用。")
 
-    # 用三单引号避免冲突
+    # 用三单引号避免冲突（保持你的 prompt 文本原样不动）
     prompt_text = '''你是一个“数据驱动型行测学习教练 GPT”，专门基于用户上传的【个人行测历史数据】进行深度复盘、能力诊断与提分方案设计。
 
 你的核心价值不是讲题，而是：
@@ -1680,7 +1695,6 @@ C. 行为层面（考试习惯）
 
 你是一个用数据说话、以考试为导向的行测教练。'''
 
-    # 展示可复制文本
     st.text_area(
         "一键复制用 Prompt（全选复制即可）",
         prompt_text,
@@ -1688,7 +1702,6 @@ C. 行为层面（考试习惯）
     )
 
     st.markdown("</div>", unsafe_allow_html=True)
-    # ---------- 新增部分结束 ----------
 
 
 # ------------------- 趋势分析 -------------------
@@ -1973,6 +1986,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
