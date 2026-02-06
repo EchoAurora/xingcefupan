@@ -1194,40 +1194,59 @@ elif menu == "📑 单卷详情":
         # 正确率最低 Top3、超时最多 Top3
         worst_by_acc = sorted(stats, key=lambda x: x[1])[:3]
         worst_by_time = sorted(stats, key=lambda x: x[5], reverse=True)[:3]
+
+
 left, right = st.columns(2)
 
 # ---------- 左边：正确率最低 Top3 ----------
 with left:
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='mini-header'>正确率最低 Top3</div>", unsafe_allow_html=True)
+
     for m, accm, t, plan, total, diff in worst_by_acc:
-        # 模块标题（醒目写出是哪一块）
+        # 显示模块标题
         st.markdown(
-            f"<div style='font-weight:700; margin-top:8px; margin-bottom:4px; "
-            f"color:#0f172a; font-size:0.93rem;'>"
-            f"{m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min"
-            f"</div>",
+            f"""
+            <div style='font-weight:700;
+                        margin-top:8px;
+                        margin-bottom:4px;
+                        color:#0f172a;
+                        font-size:0.93rem;'>
+                {m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min
+            </div>
+            """,
             unsafe_allow_html=True
         )
-        # 下面是该模块的详细建议（你原来的 module_tip）
+
+        # 显示建议模块
         st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
+
+
 
 # ---------- 右边：超时最多 Top3 ----------
 with right:
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='mini-header'>超时最多 Top3</div>", unsafe_allow_html=True)
+
     for m, accm, t, plan, total, diff in worst_by_time:
         st.markdown(
-            f"<div style='font-weight:700; margin-top:8px; margin-bottom:4px; "
-            f"color:#0f172a; font-size:0.93rem;'>"
-            f"{m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min ｜ 超时 {diff:.0f}min"
-            f"</div>",
+            f"""
+            <div style='font-weight:700;
+                        margin-top:8px;
+                        margin-bottom:4px;
+                        color:#0f172a;
+                        font-size:0.93rem;'>
+                {m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min ｜ 超时 {diff:.0f}min
+            </div>
+            """,
             unsafe_allow_html=True
         )
-        st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
         # 明天训练三条建议
         tasks, worst_acc, worst_time = compute_next_day_plan(row, strategy)
@@ -1806,5 +1825,6 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
