@@ -1547,18 +1547,18 @@ elif menu == "🗓️ 本周训练计划":
         # ---------- 新增：行测数据复盘 GPT Prompt，一键复制 ----------
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='mini-header'>行测数据复盘 · GPT 一键 Prompt</div>", unsafe_allow_html=True)
-        st.caption("步骤：在本网站导出历史数据 → 上传到 GPT → 直接复制下方 Prompt 使用。")
-
-        prompt_text = """使用说明示例：
-
-在网站导出你的行测历史数据
+        st.caption("步骤：在本网站导出历史数据 → 上传到 GPT → 直接复制下方 Prompt 使用。在网站导出你的行测历史数据
 
 上传到 GPT
 
 输入这句话：
 
 “请基于我上传的行测数据，按考试视角帮我做一次完整复盘，并给出下一阶段提分方案。”
-✅ 行测数据复盘 GPT Prompt
+")
+
+        prompt_text = """✅ 行测数据复盘 GPT Prompt
+
+
 你是一个“数据驱动型行测学习教练 GPT”，专门基于用户上传的【个人行测历史数据】进行深度复盘、能力诊断与提分方案设计。
 
 你的核心价值不是讲题，而是：
@@ -1976,6 +1976,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
