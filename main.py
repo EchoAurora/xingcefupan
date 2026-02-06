@@ -1160,28 +1160,29 @@ elif menu == "📑 单卷详情":
     st.markdown("""
     <div class="hero">
       <div class="hero-title">📑 单卷详情</div>
-      <div class="hero-sub">系统自动输出：<b>短板 Top3</b>、<b>超时 Top3</b>、<b>每模块 1 个动作</b>、<b>明天训练 3 条</b>。</div>
+      <div class="hero-sub">系统自动输出：<b>短板 Top3</b>、<b>超时 Top3</b>、<b>每模块 1 个动作</b>、<b>明天训练 3 条</b></div>
     </div>
     """, unsafe_allow_html=True)
 
     if df.empty:
-        st.info("暂无数据。先去【✏️ 录入成绩】。")
+        st.info("暂无数据。先去【录入成绩】。")
     else:
-        # 选择要查看的历史模考
+
+        # =============== 选择试卷 ===============
         sel_list = df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1).tolist()[::-1]
         sel = st.selectbox("选择历史模考", sel_list)
         row = df[df.apply(lambda x: f"{x['日期']} | {x['试卷']}", axis=1) == sel].iloc[0]
 
-        # 顶部总览指标
+        # =============== 顶部汇总 ===============
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("得分", f"{float(row['总分']):.1f}")
         c2.metric("正确率", f"{float(row['总正确数'])/max(float(row['总题数']),1):.1%}")
         c3.metric("总用时", f"{int(row['总用时'])} min")
-        c4.metric("得分效率", f"{float(row['总分'])/max(float(row['总用时']),1):.2f} 分/min")
+        c4.metric("效率", f"{float(row['总分'])/max(float(row['总用时']),1):.2f} 分/min")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # 统计每个模块的准确率 / 超时
+        # =============== 计算模块表现 ===============
         stats = []
         for m in LEAF_MODULES:
             accm = float(row.get(f"{m}_正确率", 0))
@@ -1191,79 +1192,76 @@ elif menu == "📑 单卷详情":
             diff = (t - plan) if plan else 0
             stats.append((m, accm, t, plan, total, diff))
 
-        # 正确率最低 Top3、超时最多 Top3
         worst_by_acc = sorted(stats, key=lambda x: x[1])[:3]
         worst_by_time = sorted(stats, key=lambda x: x[5], reverse=True)[:3]
 
+        # =============== 左右两栏 Top3 ===============
+        left, right = st.columns(2)
 
-left, right = st.columns(2)
+        # ------- 左：正确率最低 -------
+        with left:
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.markdown("<div class='mini-header'>正确率最低 Top3</div>", unsafe_allow_html=True)
 
-# ---------- 左边：正确率最低 Top3 ----------
-with left:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("<div class='mini-header'>正确率最低 Top3</div>", unsafe_allow_html=True)
+            for m, accm, t, plan, total, diff in worst_by_acc:
+                st.markdown(
+                    f"""
+                    <div style='font-weight:700;
+                                margin-top:8px;
+                                margin-bottom:4px;
+                                color:#0f172a;
+                                font-size:0.93rem;'>
+                        {m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
 
-    for m, accm, t, plan, total, diff in worst_by_acc:
-        # 显示模块标题
-        st.markdown(
-            f"""
-            <div style='font-weight:700;
-                        margin-top:8px;
-                        margin-bottom:4px;
-                        color:#0f172a;
-                        font-size:0.93rem;'>
-                {m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # 显示建议模块
-        st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
+        # ------- 右：超时最多 -------
+        with right:
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.markdown("<div class='mini-header'>超时最多 Top3</div>", unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+            for m, accm, t, plan, total, diff in worst_by_time:
+                st.markdown(
+                    f"""
+                    <div style='font-weight:700;
+                                margin-top:8px;
+                                margin-bottom:4px;
+                                color:#0f172a;
+                                font-size:0.93rem;'>
+                        {m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min ｜ 超时 {diff:.0f}min
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
 
+            st.markdown("</div>", unsafe_allow_html=True)
 
-
-# ---------- 右边：超时最多 Top3 ----------
-with right:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("<div class='mini-header'>超时最多 Top3</div>", unsafe_allow_html=True)
-
-    for m, accm, t, plan, total, diff in worst_by_time:
-        st.markdown(
-            f"""
-            <div style='font-weight:700;
-                        margin-top:8px;
-                        margin-bottom:4px;
-                        color:#0f172a;
-                        font-size:0.93rem;'>
-                {m} ｜ 正确率 {accm:.0%} ｜ 用时 {int(t)}min ｜ 超时 {diff:.0f}min
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        st.markdown(module_tip(m, accm, t, plan, strategy), unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-        # 明天训练三条建议
+        # =============== 关键：下面这一行必须放在 “with left/right” 之后！ ===============
         tasks, worst_acc, worst_time = compute_next_day_plan(row, strategy)
+
+        # =============== 明天怎么练 ===============
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markmarkdown = st.markdown  # 防止误写 markmarkdown 之类报错的小保护（可删）
-        st.markdown("<div class='mini-header'>✅ 明天怎么练（只给3条，能执行）</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mini-header'>明天训练计划（自动生成）</div>", unsafe_allow_html=True)
+
         st.markdown(f"""
         <ol style="margin: 0 0 0 18px;">
           <li>{tasks[0]}</li>
           <li>{tasks[1]}</li>
           <li>{tasks[2]}</li>
         </ol>
-        <div class="small-muted" style="margin-top:10px;">
-          重点短板：<b>{worst_acc[0]}</b>（正确率 {worst_acc[1]:.0%}）； 
-          时间黑洞：<b>{worst_time[0]}</b>（超时 {worst_time[2]:.0f} 分钟）
+
+        <div class='small-muted' style='margin-top:10px;'>
+            重点短板：<b>{worst_acc[0]}</b>（正确率 {worst_acc[1]:.0%}）；
+            时间黑洞：<b>{worst_time[0]}</b>（超时 {worst_time[2]:.0f} 分钟）
         </div>
         """, unsafe_allow_html=True)
+
         st.markdown("</div>", unsafe_allow_html=True)
 
         # 模块卡片（3 列：政治常识言语 / 数量资料 / 判断）
@@ -1825,6 +1823,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
