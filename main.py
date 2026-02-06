@@ -256,6 +256,96 @@ div[data-testid="stPlotlyChart"]{ margin-top: -4px; }
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+
+/* 顶部 KPI 卡片：改成白色浅色卡片 */
+.card-dark{
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(148,163,184,0.25);
+  box-shadow: 0 8px 24px rgba(15,23,42,0.10);
+}
+
+/* KPI 小块：浅色风格 */
+.kpi{
+  flex: 1 1 190px;
+  border-radius: 16px;
+  padding: 12px 12px;
+  background: #ffffff;
+  border: 1px solid rgba(148,163,184,0.25);
+  box-shadow: 0 8px 22px rgba(15,23,42,0.06);
+}
+.kpi .k{
+  font-size: 0.80rem;
+  color: #64748b;
+}
+.kpi .v{
+  font-size: 1.36rem;
+  font-weight: 950;
+  margin-top: 2px;
+  letter-spacing: -0.02em;
+}
+.kpi .d{
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* 复盘提示框：浅灰背景 + 阴影，不再是黑色 */
+.tip-box{
+  background: #f9fafb;
+  color: #0f172a;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148,163,184,0.25);
+  margin: 10px 0;
+  line-height: 1.48;
+  font-size: 0.92rem;
+  box-shadow: 0 6px 20px rgba(15,23,42,0.06);
+}
+
+/* 标签基础样式 */
+.pill{
+  display:inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+/* 短板 → 红色 */
+.pill-short{
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+/* 可提升 → 蓝色 */
+.pill-mid{
+  background: #dbeafe;
+  color: #1e3a8a;
+  border: 1px solid #bfdbfe;
+}
+
+/* 强项 → 绿色 */
+.pill-strong{
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+/* 超时 → 橙色 */
+.pill-time{
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # =========================================================
 # 2. 配置与模块结构
 # =========================================================
@@ -626,47 +716,75 @@ def render_module_card(
 
 def module_tip(m: str, acc: float, t: float, plan: float, strategy: Dict) -> str:
     """
-    单卷 TOP3 提示卡：
-    - 顶部显示模块名（方便一眼知道是哪个模块）
-    - 中间是标签 + 建议
+    根据模块、正确率、用时和策略，生成一段『复盘建议文字 + 彩色标签』HTML。
+    - 短板：红色 pill-short
+    - 可提升：蓝色 pill-mid
+    - 强项：绿色 pill-strong
+    - 超时：橙色 pill-time
     """
     tips = []
-    # 时间超标提示
+
+    # 超时提示（橙色 pill）
     if plan and t > plan + 2:
-        tips.append(f"<span class='pill'>超时</span>用时 <b>{int(t)}m</b>，比计划 <b>+{int(t-plan)}m</b>。设置上限→超时先跳。")
+        tips.append(
+            f"<span class='pill pill-time'>超时</span>"
+            f"用时 <b>{int(t)}m</b>，比计划 <b>+{int(t - plan)}m</b>。设置上限→超时先跳。"
+        )
 
-    # 正确率标签
-    if acc >= 0.8:
-        tips.append(f"<span class='pill'>强项</span>正确率 <b>{acc:.0%}</b>，重点：提速 + 降低粗心。")
-    elif acc < 0.6:
-        tips.append(f"<span class='pill'>短板</span>正确率 <b>{acc:.0%}</b>，错题拆三类：不会/不熟/审题坑，并只改一个动作。")
+    # 正确率提示（红 / 蓝 / 绿）
+    if acc < 0.6:
+        tips.append(
+            f"<span class='pill pill-short'>短板</span>"
+            f"正确率 <b>{acc:.0%}</b>，错题拆三类：不会/不熟/审题坑，并只改一个动作。"
+        )
+    elif acc >= 0.8:
+        tips.append(
+            f"<span class='pill pill-strong'>强项</span>"
+            f"正确率 <b>{acc:.0%}</b>，重点：提速 + 降低粗心。"
+        )
     else:
-        tips.append(f"<span class='pill'>可提升</span>正确率 <b>{acc:.0%}</b>，属于训练就能稳定涨的区间。")
+        tips.append(
+            f"<span class='pill pill-mid'>可提升</span>"
+            f"正确率 <b>{acc:.0%}</b>，属于训练就能稳定涨的区间。"
+        )
 
-    # 模块专属动作
+    # ====== 各模块专属动作（保持你原来的逻辑，只是接在新样式后） ======
     if m == "资料分析":
         per_block = int(strategy.get("资料_每篇上限分钟", 6))
         skip = bool(strategy.get("资料_超时先跳", True))
         skip_txt = "（超时先跳）" if skip else ""
-        tips.append(f"做法：<b>每篇限时{per_block}分钟</b>{skip_txt}；每天15分钟练<b>速算（增长率/基期/比重/平均）</b>。")
+        tips.append(
+            f"动作：<b>每篇限时{per_block}分钟</b>{skip_txt}；"
+            f"每天15分钟练<b>速算（增长率/基期/比重/平均）</b>。"
+        )
     elif m == "数量关系":
         sec = int(strategy.get("数量_每题上限秒", 60))
         easy_only = bool(strategy.get("数量_只做简单题", True))
         easy_txt = "（只做简单题）" if easy_only else ""
-        tips.append(f"做法：<b>每题{sec}秒上限</b>{easy_txt}；只保留你最稳的<b>3类题型</b>训练，其余秒放。")
+        tips.append(
+            f"动作：<b>每题{sec}秒上限</b>{easy_txt}；"
+            f"只保留你最稳的<b>3类题型</b>训练，其余秒放。"
+        )
     elif m in ["言语-逻辑填空", "言语-片段阅读"]:
-        tips.append("做法：每天20题专项；错题只写一句：<b>语境/搭配/转折因果关键词</b>，下次遇坑能秒避。")
+        tips.append(
+            "动作：每天20题专项；错题只写一句："
+            "<b>语境/搭配/转折因果关键词</b>，下次遇坑能秒避。"
+        )
     elif m in ["政治理论", "常识判断"]:
-        tips.append("做法：每天10分钟刷题；错题压成<b>1行卡片关键词</b>（法条/时政点）。")
+        tips.append(
+            "动作：每天10分钟刷题；错题压成<b>1行卡片关键词</b>（法条/时政点）。"
+        )
     elif m == "判断-逻辑判断":
         sec = int(strategy.get("逻辑_每题上限秒", 90))
-        tips.append(f"做法：设置<b>{sec}秒上限</b>；难题先跳，优先稳图推/类比/定义。")
+        tips.append(
+            f"动作：设置<b>{sec}秒上限</b>；难题先跳，优先稳图推/类比/定义。"
+        )
     elif m.startswith("判断-"):
-        tips.append("做法：图推/类比/定义优先稳分；复杂题设置上限，超过先跳。")
+        tips.append(
+            "动作：图推/类比/定义优先稳分；复杂题设置上限，超过先跳。"
+        )
 
-    # 组装 HTML：模块名 + 内容
-    return "<div class='tip-box'><div class='tip-mod'>" + m + "</div>" + "<br>".join(tips) + "</div>"
-
+    return "<div class='tip-box'>" + "<br>".join(tips) + "</div>"
 
 def compute_summary(df: pd.DataFrame):
     """返回最新一套卷的 summary 信息"""
@@ -1668,3 +1786,4 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
