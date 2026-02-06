@@ -1511,126 +1511,54 @@ elif menu == "🗓️ 本周训练计划":
     st.markdown("""
     <div class="hero">
       <div class="hero-title">🗓️ 本周训练计划</div>
-      <div class="hero-sub">
-        系统基于最近 3 套卷：自动挑出短板 & 时间黑洞，并生成 7 天可执行清单。
-        你也可以在这里手动修改、保存本周计划，并导出到 GPT 做更深度的数据复盘。
-      </div>
+      <div class="hero-sub">系统基于最近 3 套卷：自动挑出短板&时间黑洞，并生成 7 天可执行清单。</div>
     </div>
     """, unsafe_allow_html=True)
 
     if df.empty:
         st.info("还没有成绩数据，先去【录入成绩】。")
     else:
-        # 🔹 先尝试读取用户保存的周计划，没有的话用自动生成
-        auto_wp = build_week_plan(df, strategy)
-        saved_wp = load_week_plan(un)
-        if saved_wp:
-            week_plan = saved_wp
-            plan_source = "自定义计划（已保存）"
-        else:
-            week_plan = auto_wp
-            plan_source = "自动生成（基于最近 3 套）"
+        wp = build_week_plan(df, strategy)
 
-        # ====== 说明卡片 ======
+        # ---------- 生成规则说明 ----------
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='mini-header'>生成规则 & 当前来源</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mini-header'>生成规则</div>", unsafe_allow_html=True)
         st.write("每天固定三件事：**资料速算 15min** + **言语填空 20题** + **短板/超时专项**。")
-        st.caption(f"当前计划来源：{plan_source}。你可以在下面修改每天任务，并点击【保存本周计划】。")
+        st.caption("你可以在【策略设置】里调上限（数量秒 / 资料分钟 / 逻辑秒）与放弃策略。")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ====== 可编辑的 7 天任务清单 ======
+        # ---------- 7 天任务清单 ----------
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='mini-header'>7 天任务清单（可编辑）</div>", unsafe_allow_html=True)
-
-        # 用 session_state 保存编辑中的内容，避免每次刷新丢失
-        if "week_plan_edit" not in st.session_state:
-            st.session_state.week_plan_edit = week_plan
-
-        new_plan = []
-        for idx, day in enumerate(st.session_state.week_plan_edit):
-            date_str = day.get("日期", "")
-            focus = day.get("重点模块", "")
-            tasks_list = day.get("任务", [])
-
-            with st.expander(f"📅 {date_str}  | 重点：{focus}", expanded=False):
-                c1, c2 = st.columns([1, 2])
-                with c1:
-                    new_focus = st.text_input(
-                        "重点模块（可改）",
-                        value=focus,
-                        key=f"wp_focus_{idx}"
-                    )
-                with c2:
-                    tasks_text = "\n".join(tasks_list) if tasks_list else ""
-                    new_tasks_text = st.text_area(
-                        "当日任务清单（每行一条）",
-                        value=tasks_text,
-                        key=f"wp_tasks_{idx}",
-                        height=120
-                    )
-
-                parsed_tasks = [
-                    t.strip() for t in new_tasks_text.split("\n")
-                    if t.strip()
-                ]
-                new_plan.append({
-                    "日期": date_str,
-                    "重点模块": new_focus.strip() or focus,
-                    "任务": parsed_tasks
-                })
-
-        # 底部操作按钮
-        c1, c2, c3 = st.columns([1, 1, 1.2])
-        with c1:
-            if st.button("💾 保存本周计划", use_container_width=True):
-                save_week_plan(un, new_plan)
-                st.session_state.week_plan_edit = new_plan
-                st.success("已保存本周训练计划！【今日任务】将优先使用你修改后的版本。")
-                time.sleep(0.6)
-                st.rerun()
-        with c2:
-            if st.button("🔄 重新根据最近 3 套生成", use_container_width=True):
-                save_week_plan(un, auto_wp)
-                st.session_state.week_plan_edit = auto_wp
-                st.success("已根据最近 3 套卷重新生成本周计划，并覆盖之前的自定义内容。")
-                time.sleep(0.6)
-                st.rerun()
-        with c3:
-            st.caption("提示：保存后，【今日任务】会自动从你保存的周计划中取当天任务。")
-
+        st.markdown("<div class='mini-header'>7 天任务清单</div>", unsafe_allow_html=True)
+        for d in wp:
+            with st.expander(f"📅 {d['日期']}  | 重点：{d['重点模块']}", expanded=False):
+                st.markdown("\n".join([f"- {x}" for x in d["任务"]]))
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ====== 导出周计划（复制到备忘录） ======
+        # ---------- 导出周计划（原有功能） ----------
         with st.expander("📤 导出周计划（复制到备忘录）", expanded=False):
-            lines = ["## 本周训练计划"]
-            for d in new_plan:
+            lines = ["## 本周训练计划（自动生成）"]
+            for d in wp:
                 lines.append(f"\n### {d['日期']}（重点：{d['重点模块']}）")
                 for t in d["任务"]:
                     lines.append(f"- {t}")
             st.code("\n".join(lines), language="markdown")
 
-        # ====== 行测数据复盘 GPT Prompt（可一键复制） ======
+        # ---------- 新增：行测数据复盘 GPT Prompt，一键复制 ----------
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='mini-header'>行测数据复盘 · GPT Prompt（可一键复制）</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mini-header'>行测数据复盘 · GPT 一键 Prompt</div>", unsafe_allow_html=True)
+        st.caption("步骤：在本网站导出历史数据 → 上传到 GPT → 直接复制下方 Prompt 使用。")
 
-        # 使用说明示例（方便新手）
-        st.markdown(
-            """
-**使用说明示例：**
+        prompt_text = """使用说明示例：
 
-1. 在本网站导出你的行测历史数据（或整理为 Excel / CSV）
-2. 上传到 GPT（或其他大模型）
-3. 输入这句话：
+在网站导出你的行测历史数据
 
-> “请基于我上传的行测数据，按考试视角帮我做一次完整复盘，并给出下一阶段提分方案。”
+上传到 GPT
 
-下面这段 Prompt 已为你写好，可以一键复制粘贴到 GPT 里用：
-            """.strip(),
-            unsafe_allow_html=False
-        )
+输入这句话：
 
-        # 真正的 Prompt 文本（原样保留，方便复制）
-        prompt_text = """✅ 行测数据复盘 GPT Prompt
+“请基于我上传的行测数据，按考试视角帮我做一次完整复盘，并给出下一阶段提分方案。”
+✅ 行测数据复盘 GPT Prompt
 你是一个“数据驱动型行测学习教练 GPT”，专门基于用户上传的【个人行测历史数据】进行深度复盘、能力诊断与提分方案设计。
 
 你的核心价值不是讲题，而是：
@@ -1758,11 +1686,13 @@ C. 行为层面（考试习惯）
 - 哪些题是“命题人给我下的套”
 - 哪些题我应该毫不犹豫地放弃
 
-你是一个用数据说话、以考试为导向的行测教练。"""
+你是一个用数据说话、以考试为导向的行测教练。
+"""
 
-        # 用 code 区块展示，方便用户一键复制
+        # 用 code 块方便“一键复制”
         st.code(prompt_text, language="markdown")
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ------------------- 趋势分析 -------------------
 elif menu == "📊 趋势分析":
@@ -2046,6 +1976,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
