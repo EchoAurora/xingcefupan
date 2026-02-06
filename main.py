@@ -311,7 +311,7 @@ elif menu == "📑 单卷详情":
         
         # --- 左列：政治、常识、言语 ---
         with col_left:
-            st.markdown('<div class="mini-header">基础模块</div>', unsafe_allow_html=True)
+            st.markdown('<div class="mini-header">政治常识</div>', unsafe_allow_html=True)
             # 政治
             st.markdown(render_styled_card("政治理论", row["政治理论_正确数"], row["政治理论_总题数"], row["政治理论_用时"], row["政治理论_正确率"]), unsafe_allow_html=True)
             # 常识
@@ -321,16 +321,12 @@ elif menu == "📑 单卷详情":
             # 言语子模块
             for sub in ["言语-逻辑填空", "言语-片段阅读"]:
                 st.markdown(render_styled_card(sub, row[f"{sub}_正确数"], row[f"{sub}_总题数"], row[f"{sub}_用时"], row[f"{sub}_正确率"]), unsafe_allow_html=True)
-
-        # --- 中列：数量、资料 ---
-        with col_mid:
-            st.markdown('<div class="mini-header">理科模块</div>', unsafe_allow_html=True)
+            st.markdown('<div class="mini-header">数量关系</div>', unsafe_allow_html=True)
+            
             # 数量
             st.markdown(render_styled_card("数量关系", row["数量关系_正确数"], row["数量关系_总题数"], row["数量关系_用时"], row["数量关系_正确率"]), unsafe_allow_html=True)
             
-            st.markdown('<div class="mini-header">资料分析</div>', unsafe_allow_html=True)
-            # 资料 (大模块，放在中间显眼)
-            st.markdown(render_styled_card("资料分析", row["资料分析_正确数"], row["资料分析_总题数"], row["资料分析_用时"], row["资料分析_正确率"]), unsafe_allow_html=True)
+ 
 
         # --- 右列：判断推理 ---
         with col_right:
@@ -339,6 +335,10 @@ elif menu == "📑 单卷详情":
             judgement_subs = ["判断-图形推理", "判断-定义判断", "判断-类比推理", "判断-逻辑判断"]
             for sub in judgement_subs:
                 st.markdown(render_styled_card(sub, row[f"{sub}_正确数"], row[f"{sub}_总题数"], row[f"{sub}_用时"], row[f"{sub}_正确率"]), unsafe_allow_html=True)
+            st.markdown('<div class="mini-header">资料分析</div>', unsafe_allow_html=True)
+            
+            # 资料 (大模块，放在中间显眼)
+            st.markdown(render_styled_card("资料分析", row["资料分析_正确数"], row["资料分析_总题数"], row["资料分析_用时"], row["资料分析_正确率"]), unsafe_allow_html=True)
 
 # --- 📊 趋势分析 ---
 elif menu == "📊 趋势分析":
@@ -479,3 +479,4 @@ elif menu == "🛡️ 管理后台" and role == 'admin':
                     st.success("已删除")
                     st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
