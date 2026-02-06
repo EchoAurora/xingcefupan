@@ -139,7 +139,7 @@
 ---
 
 ## 🚀 快速开始
-
+在线网页版：https://xingcefupan-gycwjxhuebuqutp6qvzc4e.streamlit.app/
 ```bash
 # 克隆项目
 git clone https://github.com/EchoAurora/xingcefupan.git
