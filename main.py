@@ -1575,58 +1575,70 @@ elif menu == "⏱️ 做题计时器":
     </div>
     """, unsafe_allow_html=True)
 
-    # ====== Flip Clock 样式（整体只需定义一次，重复渲染没关系）======
+    # ============ Flip Clock 风格 CSS，模拟翻页钟视觉 ============
     flip_css = """
     <style>
     .flip-clock-wrapper {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        align-items: center;
+        display:flex;
+        gap:12px;
+        justify-content:center;
+        align-items:center;
     }
     .flip-card {
-        background: #000;
-        border-radius: 16px;
-        box-shadow: 0 12px 32px rgba(0,0,0,0.7);
-        padding: 8px 6px;
+        background:#000;
+        border-radius:16px;
+        box-shadow:0 16px 40px rgba(0,0,0,0.7);
+        padding:8px 10px;
     }
     .flip-card-inner {
-        position: relative;
-        color: #f5f5f5;
-        font-family: "SF Mono","Consolas","Menlo",monospace;
-        font-weight: 800;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 0 18px;
+        position:relative;
+        color:#f5f5f5;
+        font-family:"SF Mono","Consolas","Menlo",monospace;
+        font-weight:800;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        padding:0 22px;
     }
+    /* 中间分割线：模拟上下两半的翻页 */
     .flip-card-inner::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 50%;
-        height: 1px;
-        background: rgba(255,255,255,0.18);
+        content:"";
+        position:absolute;
+        left:0;
+        right:0;
+        top:50%;
+        height:1px;
+        background:rgba(255,255,255,0.22);
     }
-    .flip-digit-large {
-        font-size: 80px;
+    /* 简单的上下明暗渐变，增加“翻页块”质感 */
+    .flip-card-inner::after {
+        content:"";
+        position:absolute;
+        left:0;
+        right:0;
+        top:0;
+        bottom:0;
+        background:linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.10),
+            transparent 46%,
+            transparent 54%,
+            rgba(0,0,0,0.45)
+        );
+        border-radius:16px;
+        opacity:0.9;
+        pointer-events:none;
     }
-    .flip-digit-xlarge {
-        font-size: 130px;
-    }
+    .flip-digit-large { font-size:90px; }
+    .flip-digit-xlarge { font-size:150px; }
     .flip-separator {
-        color: #f5f5f5;
-        font-family: "SF Mono","Consolas","Menlo",monospace;
-        font-weight: 800;
-        margin: 0 4px;
+        color:#f5f5f5;
+        font-family:"SF Mono","Consolas","Menlo",monospace;
+        font-weight:800;
+        margin:0 4px;
     }
-    .flip-separator-large {
-        font-size: 80px;
-    }
-    .flip-separator-xlarge {
-        font-size: 130px;
-    }
+    .flip-separator-large { font-size:90px; }
+    .flip-separator-xlarge { font-size:150px; }
     </style>
     """
     st.markdown(flip_css, unsafe_allow_html=True)
@@ -1639,7 +1651,7 @@ elif menu == "⏱️ 做题计时器":
         else:
             leaf_modules.extend(list(cfg["subs"].keys()))
 
-    # 你常用的默认顺序（可自己按喜好调整）
+    # 你的默认顺序（可自改）
     default_order = [
         "判断-图形推理",
         "判断-类比推理",
@@ -1656,7 +1668,7 @@ elif menu == "⏱️ 做题计时器":
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    # ① 选择本套卷的做题顺序
+    # ① 选择做题顺序
     st.markdown("#### ① 选择本套卷的做题顺序")
     st.caption("按你计划的顺序依次点选模块（多选框会按点击顺序记住顺序）。")
 
@@ -1670,7 +1682,6 @@ elif menu == "⏱️ 做题计时器":
     if not order:
         st.info("先从上面的多选框里选出本套卷的做题顺序。")
         st.markdown("</div>", unsafe_allow_html=True)
-
     else:
         import pandas as _pd
 
@@ -1686,56 +1697,48 @@ elif menu == "⏱️ 做题计时器":
             st.session_state.timer_start_ts = None
             st.session_state.timer_elapsed_sec = 0.0
 
-        # ② 为每个模块设置 / 修改计划用时
-        st.markdown("#### ② 各模块计划用时（可手动修改）")
-        st.caption("默认值来自 PLAN_TIME，你可以根据本场卷子的难度和感觉微调。")
+        # ② 各模块计划用时（可修改）—— 用 expander 可折叠
+        with st.expander("② 各模块计划用时（可手动修改）", expanded=True):
+            st.caption("默认值来自 PLAN_TIME，你可以根据本场卷子的难度和感觉微调。")
 
-        plan_rows = []
-        total_plan_min = 0.0
+            plan_rows = []
+            total_plan_min = 0.0
 
-        for idx, name in enumerate(order, start=1):
-            cols = st.columns([1, 3, 2])
+            for idx, name in enumerate(order, start=1):
+                cols = st.columns([1, 3, 2])
 
-            with cols[0]:
-                st.markdown(f"**{idx}**")
-            with cols[1]:
-                st.markdown(name)
-            default_plan = float(PLAN_TIME.get(name, 5))
-            with cols[2]:
-                plan_min = st.number_input(
-                    "计划min",
-                    min_value=0.0,
-                    max_value=200.0,
-                    value=default_plan,
-                    step=0.5,
-                    key=f"timer_plan_{name}",
-                    label_visibility="collapsed",
+                with cols[0]:
+                    st.markdown(f"**{idx}**")
+                with cols[1]:
+                    st.markdown(name)
+                default_plan = float(PLAN_TIME.get(name, 5))
+                with cols[2]:
+                    plan_min = st.number_input(
+                        "计划min",
+                        min_value=0.0,
+                        max_value=200.0,
+                        value=default_plan,
+                        step=0.5,
+                        key=f"timer_plan_{name}",
+                        label_visibility="collapsed",
+                    )
+                total_plan_min += plan_min
+                plan_rows.append(
+                    {"顺序": idx, "模块": name, "计划用时(min)": plan_min}
                 )
-            total_plan_min += plan_min
-            plan_rows.append(
-                {
-                    "顺序": idx,
-                    "模块": name,
-                    "计划用时(min)": plan_min,
-                }
+
+            cum = 0.0
+            for row in plan_rows:
+                cum += row["计划用时(min)"]
+                row["累计至此(min)"] = cum
+
+            plan_df = _pd.DataFrame(plan_rows)
+            st.caption(
+                f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
             )
+            st.dataframe(plan_df, use_container_width=True, hide_index=True)
 
-        # 计算累计用时
-        cum = 0.0
-        for row in plan_rows:
-            cum += row["计划用时(min)"]
-            row["累计至此(min)"] = cum
-
-        plan_df = _pd.DataFrame(plan_rows)
-
-        st.caption(
-            f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
-        )
-        st.dataframe(plan_df, use_container_width=True, hide_index=True)
-
-        st.markdown("---")
-
-        # 初始化计次数据结构
+        # ---------- 初始化计次数据 ----------
         if "timer_lap_index" not in st.session_state:
             st.session_state.timer_lap_index = 0  # 当前要记录的模块索引
         if "timer_lap_data" not in st.session_state:
@@ -1743,13 +1746,13 @@ elif menu == "⏱️ 做题计时器":
         if "timer_last_lap_total_sec" not in st.session_state:
             st.session_state.timer_last_lap_total_sec = 0.0
 
-        # 专注模式：只显示大号计时器
+        # 专注模式：只显示翻页计时器 + 控制按钮
         focus_mode = st.checkbox(
             "🔍 专注模式：只显示翻页计时器和控制按钮（适合做题时使用）",
             value=False,
         )
 
-        # ③ 初始化计时器状态（session_state）
+        # ---------- 初始化计时器状态 ----------
         if "timer_running" not in st.session_state:
             st.session_state.timer_running = False
         if "timer_start_ts" not in st.session_state:
@@ -1757,7 +1760,7 @@ elif menu == "⏱️ 做题计时器":
         if "timer_elapsed_sec" not in st.session_state:
             st.session_state.timer_elapsed_sec = 0.0
 
-        # 控制按钮区：开始 / 暂停 / 重置 / 计次
+        # 控制按钮：开始 / 暂停 / 重置 / 计次
         c1, c2, c3, c4 = st.columns(4)
         start_clicked = c1.button("▶️ 开始 / 继续", use_container_width=True)
         pause_clicked = c2.button("⏸️ 暂停", use_container_width=True)
@@ -1806,7 +1809,7 @@ elif menu == "⏱️ 做题计时器":
                 st.session_state.timer_last_lap_total_sec = elapsed
                 st.session_state.timer_lap_index = current_idx + 1
 
-        # === 根据最新计次数据，生成“计划 vs 实际”表 ===
+        # ---------- 生成“计划 vs 实际”表 ----------
         rows_for_show = []
         for row in plan_rows:
             name = row["模块"]
@@ -1829,17 +1832,21 @@ elif menu == "⏱️ 做题计时器":
             )
         actual_df = _pd.DataFrame(rows_for_show)
 
-        # ④ 显示翻页风格的大计时器（mm:ss）
+        # ---------- 翻页风格大计时器（mm:ss） ----------
         elapsed_int = int(elapsed)
         mm, ss = divmod(elapsed_int, 60)
 
         digit_class = "flip-digit-xlarge" if focus_mode else "flip-digit-large"
         sep_class = "flip-separator-xlarge" if focus_mode else "flip-separator-large"
 
+        container_style = (
+            "height:calc(100vh - 140px);display:flex;align-items:center;justify-content:center;"
+            if focus_mode
+            else "margin:26px 0;display:flex;justify-content:center;"
+        )
+
         timer_html = f"""
-        <div style='
-            {"height:80vh;display:flex;align-items:center;justify-content:center;" if focus_mode else "margin:20px 0;display:flex;justify-content:center;"}
-        '>
+        <div style='{container_style}'>
           <div class="flip-clock-wrapper">
             <div class="flip-card">
               <div class="flip-card-inner {digit_class}">{mm:02d}</div>
@@ -1853,18 +1860,41 @@ elif menu == "⏱️ 做题计时器":
         """
         st.markdown(timer_html, unsafe_allow_html=True)
 
-        # ⑤ 非专注模式下，在计时器下方展示一次“实际用时”表（只保留这一张）
+        # ---------- 实际用时表（可折叠） ----------
         if not focus_mode:
-            st.markdown("#### ③ 实际用时（按模块自动记录）")
-            st.dataframe(actual_df, use_container_width=True, hide_index=True)
-            st.caption("完成一个模块时点一次「本模块完成 / 记录用时」，系统会自动把该段时间记到当前模块。")
+            with st.expander("③ 实际用时（按模块自动记录）", expanded=True):
+                st.dataframe(actual_df, use_container_width=True, hide_index=True)
+                st.caption("完成一个模块时点一次「本模块完成 / 记录用时」，系统会自动把该段时间记到当前模块。")
+
+        # ---------- 一键导入到「录入成绩」 ----------
+        def _build_timer_export(plan_rows, lap_data):
+            plan_minutes = {r["模块"]: r["计划用时(min)"] for r in plan_rows}
+            actual_minutes = {}
+            for name, sec in lap_data.items():
+                actual_minutes[name] = round(sec / 60.0, 1)
+            return plan_minutes, actual_minutes
+
+        export_clicked = st.button("💾 将本次计划/用时导入到「✏️ 录入成绩」", use_container_width=True)
+        if export_clicked:
+            plan_minutes, actual_minutes = _build_timer_export(
+                plan_rows, st.session_state.timer_lap_data
+            )
+            st.session_state["timer_to_input"] = {
+                "plan": plan_minutes,
+                "actual": actual_minutes,
+            }
+            # 修改侧边栏菜单选项（依赖上面给 menu 设置了 key="menu"）
+            st.session_state["menu"] = "✏️ 录入成绩"
+            st.success("已将本次计划用时 & 实际用时写入缓存，并跳转到「✏️ 录入成绩」。")
+            st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ⑥ 若正在计时，让页面自动刷新，形成“正计时”效果
+        # 自动刷新形成“正计时”效果
         if st.session_state.timer_running:
             time.sleep(1)
             st.rerun()
+
 
 # ------------------- 本周训练计划 -------------------
 elif menu == "🗓️ 本周训练计划":
@@ -2102,7 +2132,6 @@ elif menu == "📊 趋势分析":
         st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ------------------- 录入成绩 -------------------
 elif menu == "✏️ 录入成绩":
     st.markdown("""
     <div class="hero">
@@ -2111,118 +2140,125 @@ elif menu == "✏️ 录入成绩":
     </div>
     """, unsafe_allow_html=True)
 
-    # ===== 外层卡片 =====
+    # 从计时器页面带过来的计划用时 / 实际用时（分钟）
+    timer_map = st.session_state.get("timer_to_input", {})
+    timer_plan = timer_map.get("plan", {})
+    timer_actual = timer_map.get("actual", {})
+
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-
-    # ❶ 先在 form 外选择试卷题量 / 分值模板（这样一切换就会 rerun）
-    paper_type = st.selectbox(
-        "试卷题量配置",
-        list(PAPER_TEMPLATES.keys()),
-        key="paper_type_cfg",
-        help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
-    )
-    tpl_cfg = PAPER_TEMPLATES[paper_type]
-    tpl_totals = tpl_cfg["totals"]
-    per_score = tpl_cfg["weight"]
-
-    st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
-
-    st.divider()
-
-    # ❷ 下面这块放在 form 里，只负责录入当场模考数据
     with st.form("input_score"):
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
-
         st.divider()
 
-        # 记录本场考试整体信息
-        entry = {
-            "日期": date,
-            "试卷": paper,
-            "试卷类型": paper_type,
-            "每题分值": per_score,
-        }
-
-        # 总正确数 / 总题数 / 总用时 / 总分
+        entry = {"日期": date, "试卷": paper}
         tc, tq, tt, ts = 0, 0, 0, 0
 
-        # 逐模块录入
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
-                # 叶子模块名，用来从模板里取题量
-                leaf_name = m
-                # 优先用模板中的题量，没有就用 MODULE_STRUCTURE 中的 total
-                total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
-
                 st.markdown(f"**📌 {m}**")
                 a, b, c = st.columns([1, 1, 1])
-                mq = a.number_input("对题数", 0, total_q, 0, key=f"q_{m}")
-                mt = b.number_input("实际用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"t_{m}")
-                mp = c.number_input("计划用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"p_{m}")
 
-                # 写入该模块数据
-                entry[f"{m}_总题数"] = total_q
+                mq = a.number_input("对题数", 0, config["total"], 0, key=f"q_{m}")
+
+                leaf_name = m
+                # 实际用时默认：优先用计时器记录，其次 PLAN_TIME
+                default_actual = timer_actual.get(leaf_name)
+                if default_actual is None:
+                    default_actual = PLAN_TIME.get(m, 5)
+                mt = b.number_input(
+                    "实际用时(min)",
+                    0.0,
+                    180.0,
+                    float(default_actual),
+                    step=0.5,
+                    key=f"t_{m}",
+                )
+
+                # 计划用时默认：优先用计时器里的计划值
+                default_plan = timer_plan.get(leaf_name)
+                if default_plan is None:
+                    default_plan = PLAN_TIME.get(m, 5)
+                mp = c.number_input(
+                    "计划用时(min)",
+                    0.0,
+                    180.0,
+                    float(default_plan),
+                    step=0.5,
+                    key=f"p_{m}",
+                )
+
+                entry[f"{m}_总题数"] = config["total"]
                 entry[f"{m}_正确数"] = mq
                 entry[f"{m}_用时"] = mt
-                entry[f"{m}_正确率"] = mq / total_q if total_q > 0 else 0
+                entry[f"{m}_正确率"] = mq / config["total"] if config["total"] > 0 else 0
                 entry[f"{m}_计划用时"] = mp
 
-                # 汇总到整套卷
                 tc += mq
-                tq += total_q
+                tq += config["total"]
                 tt += mt
-                ts += mq * per_score
-
+                ts += mq * FIXED_WEIGHT
             else:
-                # 有子模块（言语 / 判断）
                 st.markdown(f"**📌 {m}**")
                 sub_cols = st.columns(len(config["subs"]))
-
                 for idx, (sm, stot) in enumerate(config["subs"].items()):
-                    leaf_name = sm
-                    # 子模块也优先用模板题量
-                    sub_total = int(tpl_totals.get(leaf_name, stot))
-
                     with sub_cols[idx]:
                         st.caption(sm)
-                        sq = st.number_input("对题", 0, sub_total, 0, key=f"sq_{sm}")
-                        st_time = st.number_input("实(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"st_{sm}")
-                        st_plan = st.number_input("计(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"sp_{sm}")
+                        sq = st.number_input("对题", 0, stot, 0, key=f"sq_{sm}")
 
-                    # 写入子模块数据
-                    entry[f"{sm}_总题数"] = sub_total
-                    entry[f"{sm}_正确数"] = sq
-                    entry[f"{sm}_用时"] = st_time
-                    entry[f"{sm}_正确率"] = sq / sub_total if sub_total > 0 else 0
-                    entry[f"{sm}_计划用时"] = st_plan
+                        leaf_name = sm
+                        default_actual = timer_actual.get(leaf_name)
+                        if default_actual is None:
+                            default_actual = PLAN_TIME.get(sm, 5)
+                        st_time = st.number_input(
+                            "实(min)",
+                            0.0,
+                            180.0,
+                            float(default_actual),
+                            step=0.5,
+                            key=f"st_{sm}",
+                        )
 
-                    # 汇总
-                    tc += sq
-                    tq += sub_total
-                    tt += st_time
-                    ts += sq * per_score
+                        default_plan = timer_plan.get(leaf_name)
+                        if default_plan is None:
+                            default_plan = PLAN_TIME.get(sm, 5)
+                        st_plan = st.number_input(
+                            "计(min)",
+                            0.0,
+                            180.0,
+                            float(default_plan),
+                            step=0.5,
+                            key=f"sp_{sm}",
+                        )
 
+                        entry[f"{sm}_总题数"] = stot
+                        entry[f"{sm}_正确数"] = sq
+                        entry[f"{sm}_用时"] = st_time
+                        entry[f"{sm}_正确率"] = sq / stot if stot > 0 else 0
+                        entry[f"{sm}_计划用时"] = st_plan
+
+                        tc += sq
+                        tq += stot
+                        tt += st_time
+                        ts += sq * FIXED_WEIGHT
             st.markdown("---")
 
-        # ❸ 提交表单：写入整套卷的汇总数据
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
-            entry["总正确数"] = tc
-            entry["总题数"] = tq
-            entry["总用时"] = tt
-            entry["总分"] = ts
-
-            df = load_data(un)
-            new_row = pd.DataFrame([entry])
-            df = pd.concat([df, new_row], ignore_index=True)
-            save_data(df, un)
-
-            st.success("✅ 已保存！去【📑 单卷详情】和【🗓️ 本周训练计划】看看系统生成的复盘。")
-            st.balloons()
-
+            if not paper:
+                st.error("请输入试卷名称")
+            else:
+                entry.update({"总分": round(ts, 2), "总正确数": tc, "总题数": tq, "总用时": tt})
+                df2 = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
+                df2 = ensure_schema(df2)
+                save_data(df2, un)
+                st.success("数据已存档")
+                # 用完一次之后清掉计时器缓存，避免影响下一套
+                if "timer_to_input" in st.session_state:
+                    del st.session_state["timer_to_input"]
+                time.sleep(0.7)
+                st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 
@@ -2398,6 +2434,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
