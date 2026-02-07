@@ -389,7 +389,7 @@ PLAN_TIME = {
 }
 
 # ================= 新增：试卷题量与每题分值模板 =================
-# 录入成绩时可以从这里选不同机构套题的题量配置
+# 试卷题量 & 每题分值模板（录入成绩时选择）
 PAPER_TEMPLATES = {
     # 省考试卷：125题，每题0.8
     "省考套题（125题，0.8分/题）": {
@@ -442,6 +442,7 @@ PAPER_TEMPLATES = {
         },
     },
 }
+
 
 # 默认策略：数量/资料/逻辑的时间上限等
 DEFAULT_STRATEGY = {
@@ -1810,36 +1811,32 @@ elif menu == "✏️ 录入成绩":
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
 
-        # ========= 新增：选择试卷题量 / 分值模板 =========
-        # 默认选省考试卷
+        # ---------- 选择试卷题量模板 ----------
         paper_type = st.selectbox(
             "试卷题量配置",
             list(PAPER_TEMPLATES.keys()),
             help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
         )
         tpl_cfg = PAPER_TEMPLATES[paper_type]
-        tpl_totals = tpl_cfg["totals"]        # 各叶子模块题量
-        per_score = tpl_cfg["weight"]        # 每题分值
+        tpl_totals = tpl_cfg["totals"]
+        per_score = tpl_cfg["weight"]
 
         st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
 
         st.divider()
 
-        # 把试卷类型和每题分值也记在记录里（方便以后看）
         entry = {
             "日期": date,
             "试卷": paper,
             "试卷类型": paper_type,
             "每题分值": per_score,
         }
-        tc, tq, tt, ts = 0, 0, 0, 0   # 总正确数 / 总题数 / 总用时 / 总分
+        tc, tq, tt, ts = 0, 0, 0, 0
 
-        # ========= 按模块录入 =========
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
-                # 叶子模块名就是 m 本身
                 leaf_name = m
-                # 优先使用模板里的题量，没有就退回默认配置中的 total
+                # 优先用模板里配置的题量，若没有则退回默认 total
                 total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
 
                 st.markdown(f"**📌 {m}**")
@@ -1858,9 +1855,7 @@ elif menu == "✏️ 录入成绩":
                 tq += total_q
                 tt += mt
                 ts += mq * per_score
-
             else:
-                # 有子模块（言语理解、判断推理）
                 st.markdown(f"**📌 {m}**")
                 sub_cols = st.columns(len(config["subs"]))
                 for idx, (sm, stot) in enumerate(config["subs"].items()):
@@ -1883,20 +1878,13 @@ elif menu == "✏️ 录入成绩":
                     tq += sub_total
                     tt += st_time
                     ts += sq * per_score
-
             st.markdown("---")
 
-        # ========= 提交保存 =========
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
             if not paper:
                 st.error("请输入试卷名称")
             else:
-                entry.update({
-                    "总分": round(ts, 2),
-                    "总正确数": tc,
-                    "总题数": tq,
-                    "总用时": tt,
-                })
+                entry.update({"总分": round(ts, 2), "总正确数": tc, "总题数": tq, "总用时": tt})
                 df2 = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
                 df2 = ensure_schema(df2)
                 save_data(df2, un)
@@ -1904,6 +1892,7 @@ elif menu == "✏️ 录入成绩":
                 time.sleep(0.7)
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ------------------- 数据管理 -------------------
 elif menu == "⚙️ 数据管理":
@@ -2077,6 +2066,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
