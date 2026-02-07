@@ -460,7 +460,7 @@ DEFAULT_STRATEGY = {
 REVIEW_SCHEMA = [
     "日期", "试卷", "模块", "错题数",
     "错因1_知识点不会", "错因2_方法不熟", "错因3_审题选项坑",
-    "一句话原因", "下次动作"
+    "一句话原因", "下次做法"
 ]
 
 # =========================================================
@@ -792,7 +792,7 @@ def module_tip(m: str, acc: float, t: float, plan: float, strategy: Dict) -> str
     if acc < 0.6:
         tips.append(
             f"<span class='pill pill-short'>短板</span>"
-            f"正确率 <b>{acc:.0%}</b>，错题拆三类：不会/不熟/审题坑，并只改一个动作。"
+            f"正确率 <b>{acc:.0%}</b>，错题拆三类：不会/不熟/审题坑，并只改一个做法。"
         )
     elif acc >= 0.8:
         tips.append(
@@ -805,13 +805,13 @@ def module_tip(m: str, acc: float, t: float, plan: float, strategy: Dict) -> str
             f"正确率 <b>{acc:.0%}</b>，属于训练就能稳定涨的区间。"
         )
 
-    # ====== 各模块专属动作（保持你原来的逻辑，只是接在新样式后） ======
+    # ====== 各模块专属做法（保持你原来的逻辑，只是接在新样式后） ======
     if m == "资料分析":
         per_block = int(strategy.get("资料_每篇上限分钟", 6))
         skip = bool(strategy.get("资料_超时先跳", True))
         skip_txt = "（超时先跳）" if skip else ""
         tips.append(
-            f"动作：<b>每篇限时{per_block}分钟</b>{skip_txt}；"
+            f"做法：<b>每篇限时{per_block}分钟</b>{skip_txt}；"
             f"每天15分钟练<b>速算（增长率/基期/比重/平均）</b>。"
         )
     elif m == "数量关系":
@@ -819,26 +819,26 @@ def module_tip(m: str, acc: float, t: float, plan: float, strategy: Dict) -> str
         easy_only = bool(strategy.get("数量_只做简单题", True))
         easy_txt = "（只做简单题）" if easy_only else ""
         tips.append(
-            f"动作：<b>每题{sec}秒上限</b>{easy_txt}；"
+            f"做法：<b>每题{sec}秒上限</b>{easy_txt}；"
             f"只保留你最稳的<b>3类题型</b>训练，其余秒放。"
         )
     elif m in ["言语-逻辑填空", "言语-片段阅读"]:
         tips.append(
-            "动作：每天20题专项；错题只写一句："
+            "做法：每天20题专项；错题只写一句："
             "<b>语境/搭配/转折因果关键词</b>，下次遇坑能秒避。"
         )
     elif m in ["政治理论", "常识判断"]:
         tips.append(
-            "动作：每天10分钟刷题；错题压成<b>1行卡片关键词</b>（法条/时政点）。"
+            "做法：每天10分钟刷题；错题压成<b>1行卡片关键词</b>（法条/时政点）。"
         )
     elif m == "判断-逻辑判断":
         sec = int(strategy.get("逻辑_每题上限秒", 90))
         tips.append(
-            f"动作：设置<b>{sec}秒上限</b>；难题先跳，优先稳图推/类比/定义。"
+            f"做法：设置<b>{sec}秒上限</b>；难题先跳，优先稳图推/类比/定义。"
         )
     elif m.startswith("判断-"):
         tips.append(
-            "动作：图推/类比/定义优先稳分；复杂题设置上限，超过先跳。"
+            "做法：图推/类比/定义优先稳分；复杂题设置上限，超过先跳。"
         )
 
     return "<div class='tip-box'>" + "<br>".join(tips) + "</div>"
@@ -1030,7 +1030,7 @@ if not st.session_state.logged_in:
         <div class="hero">
           <div class="hero-title">🚀 行测 Pro Max</div>
           <div class="hero-sub">
-            把“模考”变成可复制的提分流程：<b>看板 → 复盘 → 动作 → 训练计划</b><br>
+            把“模考”变成可复制的提分流程：<b>看板 → 复盘 → 做法 → 训练计划</b><br>
             不再纠结做几套卷，而是每套卷都能换成稳定的分数。
           </div>
           <div class="hero-badges">
@@ -1217,7 +1217,7 @@ elif menu == "📑 单卷详情":
     st.markdown("""
     <div class="hero">
       <div class="hero-title">📑 单卷详情</div>
-      <div class="hero-sub">系统自动输出：<b>短板 Top3</b>、<b>超时 Top3</b>、<b>每模块 1 个动作</b>、<b>明天训练 3 条</b></div>
+      <div class="hero-sub">系统自动输出：<b>短板 Top3</b>、<b>超时 Top3</b>、<b>每模块 1 个做法</b>、<b>明天训练 3 条</b></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1376,7 +1376,7 @@ elif menu == "🧠 复盘记录":
     st.markdown("""
     <div class="hero">
       <div class="hero-title">🧠 复盘记录</div>
-      <div class="hero-sub">每套卷只做一件事：把错题归因为<b>不会 / 不熟 / 审题坑</b>，并写<b>下次只改1个动作</b>。</div>
+      <div class="hero-sub">每套卷只做一件事：把错题归因为<b>不会 / 不熟 / 审题坑</b>，并写<b>下次只改1个做法</b>。</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1429,7 +1429,7 @@ elif menu == "🧠 复盘记录":
                     st.number_input("审题坑", 0, 999, 0, key=f"e3_{m}")
 
                 st.text_input("一句话原因", key=f"r_{m}", placeholder="例：基期现期看反 / 转折句没抓 / 速算失误")
-                st.text_input("下次动作（只写1个）", key=f"a_{m}", placeholder="例：资料每篇6分钟上限；数量每题60秒上限；填空每天20题")
+                st.text_input("下次做法（只写1个）", key=f"a_{m}", placeholder="例：资料每篇6分钟上限；数量每题60秒上限；填空每天20题")
 
             submit = st.form_submit_button("💾 保存本卷复盘记录", type="primary", use_container_width=True)
             if submit:
@@ -1444,11 +1444,11 @@ elif menu == "🧠 复盘记录":
                         "错因2_方法不熟": int(st.session_state.get(f"e2_{m}", 0)),
                         "错因3_审题选项坑": int(st.session_state.get(f"e3_{m}", 0)),
                         "一句话原因": st.session_state.get(f"r_{m}", ""),
-                        "下次动作": st.session_state.get(f"a_{m}", ""),
+                        "下次做法": st.session_state.get(f"a_{m}", ""),
                     })
                 rdf2 = pd.concat([rdf, pd.DataFrame(rows)], ignore_index=True)
                 save_reviews(rdf2, un)
-                st.success("已保存！以后复习只看“下次动作”。")
+                st.success("已保存！以后复习只看“下次做法”。")
                 time.sleep(0.7)
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
@@ -1465,7 +1465,7 @@ elif menu == "🧠 复盘记录":
             with f2:
                 f_mod = st.selectbox("按模块筛选", ["全部"] + LEAF_MODULES)
             with f3:
-                keyword = st.text_input("关键词搜索（原因/动作）", placeholder="例：基期、速算、转折、60秒…")
+                keyword = st.text_input("关键词搜索（原因/做法）", placeholder="例：基期、速算、转折、60秒…")
 
             view = rdf.copy()
             if f_paper != "全部":
@@ -1476,7 +1476,7 @@ elif menu == "🧠 复盘记录":
                 k = keyword.strip()
                 view = view[
                     view["一句话原因"].astype(str).str.contains(k, na=False) |
-                    view["下次动作"].astype(str).str.contains(k, na=False)
+                    view["下次做法"].astype(str).str.contains(k, na=False)
                 ]
             st.dataframe(view.sort_values(["日期", "试卷", "模块"], ascending=[False, False, True]),
                          use_container_width=True, hide_index=True)
@@ -1807,38 +1807,49 @@ elif menu == "✏️ 录入成绩":
     </div>
     """, unsafe_allow_html=True)
 
+    # ===== 外层卡片 =====
     st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+    # ❶ 先在 form 外选择试卷题量 / 分值模板（这样一切换就会 rerun）
+    paper_type = st.selectbox(
+        "试卷题量配置",
+        list(PAPER_TEMPLATES.keys()),
+        key="paper_type_cfg",
+        help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
+    )
+    tpl_cfg = PAPER_TEMPLATES[paper_type]
+    tpl_totals = tpl_cfg["totals"]
+    per_score = tpl_cfg["weight"]
+
+    st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
+
+    st.divider()
+
+    # ❷ 下面这块放在 form 里，只负责录入当场模考数据
     with st.form("input_score"):
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
 
-        # 选择试卷题量 / 分值模板
-        paper_type = st.selectbox(
-            "试卷题量配置",
-            list(PAPER_TEMPLATES.keys()),
-            help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
-        )
-        tpl_cfg = PAPER_TEMPLATES[paper_type]
-        tpl_totals = tpl_cfg["totals"]
-        per_score = tpl_cfg["weight"]
-
-        st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
-
         st.divider()
 
+        # 记录本场考试整体信息
         entry = {
             "日期": date,
             "试卷": paper,
             "试卷类型": paper_type,
             "每题分值": per_score,
         }
+
+        # 总正确数 / 总题数 / 总用时 / 总分
         tc, tq, tt, ts = 0, 0, 0, 0
 
+        # 逐模块录入
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
+                # 叶子模块名，用来从模板里取题量
                 leaf_name = m
-                # 优先使用模板里的题量，没有就退回模块结构中的 total
+                # 优先用模板中的题量，没有就用 MODULE_STRUCTURE 中的 total
                 total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
 
                 st.markdown(f"**📌 {m}**")
@@ -1847,21 +1858,27 @@ elif menu == "✏️ 录入成绩":
                 mt = b.number_input("实际用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"t_{m}")
                 mp = c.number_input("计划用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"p_{m}")
 
+                # 写入该模块数据
                 entry[f"{m}_总题数"] = total_q
                 entry[f"{m}_正确数"] = mq
                 entry[f"{m}_用时"] = mt
                 entry[f"{m}_正确率"] = mq / total_q if total_q > 0 else 0
                 entry[f"{m}_计划用时"] = mp
 
+                # 汇总到整套卷
                 tc += mq
                 tq += total_q
                 tt += mt
                 ts += mq * per_score
+
             else:
+                # 有子模块（言语 / 判断）
                 st.markdown(f"**📌 {m}**")
                 sub_cols = st.columns(len(config["subs"]))
+
                 for idx, (sm, stot) in enumerate(config["subs"].items()):
                     leaf_name = sm
+                    # 子模块也优先用模板题量
                     sub_total = int(tpl_totals.get(leaf_name, stot))
 
                     with sub_cols[idx]:
@@ -1870,30 +1887,38 @@ elif menu == "✏️ 录入成绩":
                         st_time = st.number_input("实(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"st_{sm}")
                         st_plan = st.number_input("计(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"sp_{sm}")
 
+                    # 写入子模块数据
                     entry[f"{sm}_总题数"] = sub_total
                     entry[f"{sm}_正确数"] = sq
                     entry[f"{sm}_用时"] = st_time
                     entry[f"{sm}_正确率"] = sq / sub_total if sub_total > 0 else 0
                     entry[f"{sm}_计划用时"] = st_plan
 
+                    # 汇总
                     tc += sq
                     tq += sub_total
                     tt += st_time
                     ts += sq * per_score
+
             st.markdown("---")
 
+        # ❸ 提交表单：写入整套卷的汇总数据
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
-            if not paper:
-                st.error("请输入试卷名称")
-            else:
-                entry.update({"总分": round(ts, 2), "总正确数": tc, "总题数": tq, "总用时": tt})
-                df2 = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
-                df2 = ensure_schema(df2)
-                save_data(df2, un)
-                st.success("数据已存档")
-                time.sleep(0.7)
-                st.rerun()
+            entry["总正确数"] = tc
+            entry["总题数"] = tq
+            entry["总用时"] = tt
+            entry["总分"] = ts
+
+            df = load_data(un)
+            new_row = pd.DataFrame([entry])
+            df = pd.concat([df, new_row], ignore_index=True)
+            save_data(df, un)
+
+            st.success("✅ 已保存！去【📑 单卷详情】和【🗓️ 本周训练计划】看看系统生成的复盘。")
+            st.balloons()
+
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
@@ -2069,6 +2094,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
