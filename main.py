@@ -1615,24 +1615,34 @@ elif menu == "⏱️ 做题计时器":
         st.info("先从上面的多选框里选出本套卷的做题顺序。")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
+        import pandas as _pd
+
+        # 如果顺序变化了，重置计次相关状态，避免错位
+        if "timer_order_snapshot" not in st.session_state:
+            st.session_state.timer_order_snapshot = order
+        elif st.session_state.timer_order_snapshot != order:
+            st.session_state.timer_order_snapshot = order
+            st.session_state.timer_lap_index = 0
+            st.session_state.timer_lap_data = {}
+            st.session_state.timer_last_lap_total_sec = 0.0
+            st.session_state.timer_running = False
+            st.session_state.timer_start_ts = None
+            st.session_state.timer_elapsed_sec = 0.0
+
         # ② 为每个模块设置 / 修改计划用时
         st.markdown("#### ② 各模块计划用时（可手动修改）")
-        st.caption("下面默认值来自 PLAN_TIME，你可以根据本场卷子的难度和感觉微调。")
-
-        import pandas as _pd
+        st.caption("默认值来自 PLAN_TIME，你可以根据本场卷子的难度和感觉微调。")
 
         plan_rows = []
         total_plan_min = 0.0
 
-        # 用一个小“表格”形式展示 & 编辑
         for idx, name in enumerate(order, start=1):
-            cols = st.columns([1, 3, 2, 2])
+            cols = st.columns([1, 3, 2])
 
             with cols[0]:
                 st.markdown(f"**{idx}**")
             with cols[1]:
-                st.markdown(f"{name}")
-            # 默认计划用时（分钟）
+                st.markdown(name)
             default_plan = float(PLAN_TIME.get(name, 5))
             with cols[2]:
                 plan_min = st.number_input(
@@ -1653,7 +1663,7 @@ elif menu == "⏱️ 做题计时器":
                 }
             )
 
-        # 计算“累计至此”这一列
+        # 计算累计用时
         cum = 0.0
         for row in plan_rows:
             cum += row["计划用时(min)"]
@@ -1661,14 +1671,48 @@ elif menu == "⏱️ 做题计时器":
 
         plan_df = _pd.DataFrame(plan_rows)
 
-        st.caption(
-            f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
-        )
-        st.dataframe(plan_df, use_container_width=True, hide_index=True)
+        # 初始化计次数据结构
+        if "timer_lap_index" not in st.session_state:
+            st.session_state.timer_lap_index = 0  # 当前要记录的模块索引
+        if "timer_lap_data" not in st.session_state:
+            st.session_state.timer_lap_data = {}  # 模块 -> 秒
+        if "timer_last_lap_total_sec" not in st.session_state:
+            st.session_state.timer_last_lap_total_sec = 0.0
 
-        st.markdown("---")
+        # 生成“计划 vs 实际”表（先用现有计次数据）
+        rows_for_show = []
+        for row in plan_rows:
+            name = row["模块"]
+            plan_min = row["计划用时(min)"]
+            act_sec = st.session_state.timer_lap_data.get(name)
+            if act_sec is not None:
+                act_min = act_sec / 60.0
+                diff = act_min - plan_min
+            else:
+                act_min = None
+                diff = None
+            rows_for_show.append(
+                {
+                    "顺序": row["顺序"],
+                    "模块": name,
+                    "计划用时(min)": plan_min,
+                    "实际用时(min)": None if act_min is None else round(act_min, 1),
+                    "偏差(min)": None if diff is None else round(diff, 1),
+                }
+            )
+        actual_df = _pd.DataFrame(rows_for_show)
 
-        # ③ 初始化计时器状态（放在 session_state 里）
+        # 专注模式：只显示大号计时器
+        focus_mode = st.checkbox("🔍 专注模式：只显示大号计时器和控制按钮", value=False)
+
+        if not focus_mode:
+            st.caption(
+                f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
+            )
+            st.dataframe(actual_df, use_container_width=True, hide_index=True)
+            st.markdown("---")
+
+        # ③ 初始化计时器状态（session_state）
         if "timer_running" not in st.session_state:
             st.session_state.timer_running = False
         if "timer_start_ts" not in st.session_state:
@@ -1676,11 +1720,12 @@ elif menu == "⏱️ 做题计时器":
         if "timer_elapsed_sec" not in st.session_state:
             st.session_state.timer_elapsed_sec = 0.0
 
-        # ④ 控制按钮区
-        c1, c2, c3 = st.columns(3)
+        # ④ 控制按钮区：开始 / 暂停 / 重置 / 计次
+        c1, c2, c3, c4 = st.columns(4)
         start_clicked = c1.button("▶️ 开始 / 继续", use_container_width=True)
         pause_clicked = c2.button("⏸️ 暂停", use_container_width=True)
         reset_clicked = c3.button("⏹️ 重置计时", use_container_width=True)
+        lap_clicked = c4.button("✅ 本模块完成 / 记录用时", use_container_width=True)
 
         now_ts = time.time()
 
@@ -1704,45 +1749,78 @@ elif menu == "⏱️ 做题计时器":
             st.session_state.timer_running = False
             st.session_state.timer_start_ts = None
             st.session_state.timer_elapsed_sec = 0.0
+            st.session_state.timer_last_lap_total_sec = 0.0
+            st.session_state.timer_lap_index = 0
+            st.session_state.timer_lap_data = {}
 
-        # ⑤ 计算当前总用时（秒，带小数）
+        # 当前总用时（秒）
         elapsed = st.session_state.timer_elapsed_sec
         if st.session_state.timer_running and st.session_state.timer_start_ts is not None:
             elapsed += now_ts - st.session_state.timer_start_ts
 
-        # 转成 mm:ss.mmm 这种格式
-        total_ms = int(elapsed * 1000)
-        mm = total_ms // 60000
-        ss = (total_ms // 1000) % 60
-        ms = total_ms % 1000
+        # 计次：记录当前模块用时（按顺序依次记录）
+        if lap_clicked:
+            current_idx = st.session_state.timer_lap_index
+            if current_idx < len(order):
+                module_name = order[current_idx]
+                last_total = st.session_state.timer_last_lap_total_sec
+                lap_dur = max(0.0, elapsed - last_total)
+                st.session_state.timer_lap_data[module_name] = lap_dur
+                st.session_state.timer_last_lap_total_sec = elapsed
+                st.session_state.timer_lap_index = current_idx + 1
 
-        st.markdown("#### ③ 实时总用时")
+        # 再算一遍“实际用时”表（把刚刚计次也算进去）
+        rows_for_show = []
+        for row in plan_rows:
+            name = row["模块"]
+            plan_min = row["计划用时(min)"]
+            act_sec = st.session_state.timer_lap_data.get(name)
+            if act_sec is not None:
+                act_min = act_sec / 60.0
+                diff = act_min - plan_min
+            else:
+                act_min = None
+                diff = None
+            rows_for_show.append(
+                {
+                    "顺序": row["顺序"],
+                    "模块": name,
+                    "计划用时(min)": plan_min,
+                    "实际用时(min)": None if act_min is None else round(act_min, 1),
+                    "偏差(min)": None if diff is None else round(diff, 1),
+                }
+            )
+        actual_df = _pd.DataFrame(rows_for_show)
+
+        # ⑤ 显示大号计时器（mm:ss），黑底大字，类似翻牌效果
+        elapsed_int = int(elapsed)
+        mm, ss = divmod(elapsed_int, 60)
+
+        font_size = 90 if focus_mode else 60
         timer_html = f"""
-        <div style='font-size:52px;font-weight:800;text-align:center;margin:16px 0;'>
-            {mm:02d}:{ss:02d}.{ms:03d}
+        <div style='display:flex;justify-content:center;margin:24px 0;'>
+          <div style='background:#000;padding:20px 40px;border-radius:18px;
+                      font-size:{font_size}px;font-weight:800;color:#f5f5f5;
+                      font-family: "SF Mono", "Consolas", "Menlo", monospace;
+                      box-shadow:0 10px 30px rgba(0,0,0,0.6);'>
+            {mm:02d}:{ss:02d}
+          </div>
         </div>
         """
         st.markdown(timer_html, unsafe_allow_html=True)
 
-        # ⑥ 用进度条展示「总计划用时」对比
-        if total_plan_min > 0:
-            used_min = elapsed / 60.0
-            ratio = min(used_min / total_plan_min, 1.0)
-            st.progress(
-                ratio,
-                text=f"计划 {total_plan_min:.1f} 分钟，目前约 {used_min:.1f} 分钟",
-            )
+        # 非专注模式下，在计时器下方再展示一次“计划 vs 实际”
+        if not focus_mode:
+            st.markdown("#### ③ 实际用时（按模块自动记录）")
+            st.dataframe(actual_df, use_container_width=True, hide_index=True)
 
-        st.caption(
-            "建议：开着这个页面做整套题，专注做题，偶尔瞄一眼计时器，调整节奏就行。"
-        )
+        st.caption("完成一个模块时点一次「本模块完成 / 记录用时」，系统会自动把该段时间记到当前模块。")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ⑦ 若正在计时，让页面自动刷新，形成“正计时”效果
+        # ⑥ 若正在计时，让页面自动刷新，形成“正计时”效果
         if st.session_state.timer_running:
-            # 这里用 0.1 秒一刷，既能看到毫秒跳动，又不至于太吃性能
-            time.sleep(0.1)
+            time.sleep(1)
             st.rerun()
 
 # ------------------- 本周训练计划 -------------------
@@ -2277,6 +2355,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
