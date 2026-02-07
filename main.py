@@ -1575,6 +1575,62 @@ elif menu == "⏱️ 做题计时器":
     </div>
     """, unsafe_allow_html=True)
 
+    # ====== Flip Clock 样式（整体只需定义一次，重复渲染没关系）======
+    flip_css = """
+    <style>
+    .flip-clock-wrapper {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        align-items: center;
+    }
+    .flip-card {
+        background: #000;
+        border-radius: 16px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+        padding: 8px 6px;
+    }
+    .flip-card-inner {
+        position: relative;
+        color: #f5f5f5;
+        font-family: "SF Mono","Consolas","Menlo",monospace;
+        font-weight: 800;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0 18px;
+    }
+    .flip-card-inner::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 1px;
+        background: rgba(255,255,255,0.18);
+    }
+    .flip-digit-large {
+        font-size: 80px;
+    }
+    .flip-digit-xlarge {
+        font-size: 130px;
+    }
+    .flip-separator {
+        color: #f5f5f5;
+        font-family: "SF Mono","Consolas","Menlo",monospace;
+        font-weight: 800;
+        margin: 0 4px;
+    }
+    .flip-separator-large {
+        font-size: 80px;
+    }
+    .flip-separator-xlarge {
+        font-size: 130px;
+    }
+    </style>
+    """
+    st.markdown(flip_css, unsafe_allow_html=True)
+
     # 1）整理所有“叶子模块”（实际做题粒度）
     leaf_modules = []
     for m, cfg in MODULE_STRUCTURE.items():
@@ -1614,6 +1670,7 @@ elif menu == "⏱️ 做题计时器":
     if not order:
         st.info("先从上面的多选框里选出本套卷的做题顺序。")
         st.markdown("</div>", unsafe_allow_html=True)
+
     else:
         import pandas as _pd
 
@@ -1671,6 +1728,13 @@ elif menu == "⏱️ 做题计时器":
 
         plan_df = _pd.DataFrame(plan_rows)
 
+        st.caption(
+            f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
+        )
+        st.dataframe(plan_df, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+
         # 初始化计次数据结构
         if "timer_lap_index" not in st.session_state:
             st.session_state.timer_lap_index = 0  # 当前要记录的模块索引
@@ -1679,38 +1743,11 @@ elif menu == "⏱️ 做题计时器":
         if "timer_last_lap_total_sec" not in st.session_state:
             st.session_state.timer_last_lap_total_sec = 0.0
 
-        # 生成“计划 vs 实际”表（先用现有计次数据）
-        rows_for_show = []
-        for row in plan_rows:
-            name = row["模块"]
-            plan_min = row["计划用时(min)"]
-            act_sec = st.session_state.timer_lap_data.get(name)
-            if act_sec is not None:
-                act_min = act_sec / 60.0
-                diff = act_min - plan_min
-            else:
-                act_min = None
-                diff = None
-            rows_for_show.append(
-                {
-                    "顺序": row["顺序"],
-                    "模块": name,
-                    "计划用时(min)": plan_min,
-                    "实际用时(min)": None if act_min is None else round(act_min, 1),
-                    "偏差(min)": None if diff is None else round(diff, 1),
-                }
-            )
-        actual_df = _pd.DataFrame(rows_for_show)
-
         # 专注模式：只显示大号计时器
-        focus_mode = st.checkbox("🔍 专注模式：只显示大号计时器和控制按钮", value=False)
-
-        if not focus_mode:
-            st.caption(
-                f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
-            )
-            st.dataframe(actual_df, use_container_width=True, hide_index=True)
-            st.markdown("---")
+        focus_mode = st.checkbox(
+            "🔍 专注模式：只显示翻页计时器和控制按钮（适合做题时使用）",
+            value=False,
+        )
 
         # ③ 初始化计时器状态（session_state）
         if "timer_running" not in st.session_state:
@@ -1720,7 +1757,7 @@ elif menu == "⏱️ 做题计时器":
         if "timer_elapsed_sec" not in st.session_state:
             st.session_state.timer_elapsed_sec = 0.0
 
-        # ④ 控制按钮区：开始 / 暂停 / 重置 / 计次
+        # 控制按钮区：开始 / 暂停 / 重置 / 计次
         c1, c2, c3, c4 = st.columns(4)
         start_clicked = c1.button("▶️ 开始 / 继续", use_container_width=True)
         pause_clicked = c2.button("⏸️ 暂停", use_container_width=True)
@@ -1769,7 +1806,7 @@ elif menu == "⏱️ 做题计时器":
                 st.session_state.timer_last_lap_total_sec = elapsed
                 st.session_state.timer_lap_index = current_idx + 1
 
-        # 再算一遍“实际用时”表（把刚刚计次也算进去）
+        # === 根据最新计次数据，生成“计划 vs 实际”表 ===
         rows_for_show = []
         for row in plan_rows:
             name = row["模块"]
@@ -1792,29 +1829,35 @@ elif menu == "⏱️ 做题计时器":
             )
         actual_df = _pd.DataFrame(rows_for_show)
 
-        # ⑤ 显示大号计时器（mm:ss），黑底大字，类似翻牌效果
+        # ④ 显示翻页风格的大计时器（mm:ss）
         elapsed_int = int(elapsed)
         mm, ss = divmod(elapsed_int, 60)
 
-        font_size = 90 if focus_mode else 60
+        digit_class = "flip-digit-xlarge" if focus_mode else "flip-digit-large"
+        sep_class = "flip-separator-xlarge" if focus_mode else "flip-separator-large"
+
         timer_html = f"""
-        <div style='display:flex;justify-content:center;margin:24px 0;'>
-          <div style='background:#000;padding:20px 40px;border-radius:18px;
-                      font-size:{font_size}px;font-weight:800;color:#f5f5f5;
-                      font-family: "SF Mono", "Consolas", "Menlo", monospace;
-                      box-shadow:0 10px 30px rgba(0,0,0,0.6);'>
-            {mm:02d}:{ss:02d}
+        <div style='
+            {"height:80vh;display:flex;align-items:center;justify-content:center;" if focus_mode else "margin:20px 0;display:flex;justify-content:center;"}
+        '>
+          <div class="flip-clock-wrapper">
+            <div class="flip-card">
+              <div class="flip-card-inner {digit_class}">{mm:02d}</div>
+            </div>
+            <div class="{sep_class}">:</div>
+            <div class="flip-card">
+              <div class="flip-card-inner {digit_class}">{ss:02d}</div>
+            </div>
           </div>
         </div>
         """
         st.markdown(timer_html, unsafe_allow_html=True)
 
-        # 非专注模式下，在计时器下方再展示一次“计划 vs 实际”
+        # ⑤ 非专注模式下，在计时器下方展示一次“实际用时”表（只保留这一张）
         if not focus_mode:
             st.markdown("#### ③ 实际用时（按模块自动记录）")
             st.dataframe(actual_df, use_container_width=True, hide_index=True)
-
-        st.caption("完成一个模块时点一次「本模块完成 / 记录用时」，系统会自动把该段时间记到当前模块。")
+            st.caption("完成一个模块时点一次「本模块完成 / 记录用时」，系统会自动把该段时间记到当前模块。")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -2355,6 +2398,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
