@@ -1564,18 +1564,18 @@ elif menu == "✅ 今日任务":
             time.sleep(0.4)
             st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
-  # ------------------- 做题计时器 -------------------
+# ------------------- 做题计时器 -------------------
 elif menu == "⏱️ 做题计时器":
     st.markdown("""
     <div class="hero">
       <div class="hero-title">⏱️ 做题计时器</div>
       <div class="hero-sub">
-        按照你真实的做题顺序，系统帮你：<b>实时计总用时</b>，并对照<b>各模块计划用时</b>，防止前面做嗨了后面时间崩盘。
+        按照你本场的做题顺序，系统帮你：<b>实时正计时</b>，并对照<b>各模块计划用时</b>，防止前面做嗨了后面时间崩盘。
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 1）定义所有叶子模块（实际做题的粒度）
+    # 1）整理所有“叶子模块”（实际做题粒度）
     leaf_modules = []
     for m, cfg in MODULE_STRUCTURE.items():
         if cfg["type"] == "direct":
@@ -1583,7 +1583,7 @@ elif menu == "⏱️ 做题计时器":
         else:
             leaf_modules.extend(list(cfg["subs"].keys()))
 
-    # 默认顺序：按你之前说的做题习惯排一遍（你可以自己改）
+    # 你常用的默认顺序（可自己按喜好调整）
     default_order = [
         "判断-图形推理",
         "判断-类比推理",
@@ -1600,9 +1600,9 @@ elif menu == "⏱️ 做题计时器":
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    # ① 选择做题顺序
+    # ① 选择本套卷的做题顺序
     st.markdown("#### ① 选择本套卷的做题顺序")
-    st.caption("按你打算的顺序依次点选模块（多选框会按点击顺序记住顺序）。")
+    st.caption("按你计划的顺序依次点选模块（多选框会按点击顺序记住顺序）。")
 
     order = st.multiselect(
         "做题顺序（点击顺序 = 实际顺序）",
@@ -1615,42 +1615,68 @@ elif menu == "⏱️ 做题计时器":
         st.info("先从上面的多选框里选出本套卷的做题顺序。")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
-        # ② 生成各模块计划用时表
+        # ② 为每个模块设置 / 修改计划用时
+        st.markdown("#### ② 各模块计划用时（可手动修改）")
+        st.caption("下面默认值来自 PLAN_TIME，你可以根据本场卷子的难度和感觉微调。")
+
         import pandas as _pd
-        rows = []
-        cum = 0
+
+        plan_rows = []
+        total_plan_min = 0.0
+
+        # 用一个小“表格”形式展示 & 编辑
         for idx, name in enumerate(order, start=1):
-            plan_min = int(PLAN_TIME.get(name, 5))
-            cum += plan_min
-            rows.append(
+            cols = st.columns([1, 3, 2, 2])
+
+            with cols[0]:
+                st.markdown(f"**{idx}**")
+            with cols[1]:
+                st.markdown(f"{name}")
+            # 默认计划用时（分钟）
+            default_plan = float(PLAN_TIME.get(name, 5))
+            with cols[2]:
+                plan_min = st.number_input(
+                    "计划min",
+                    min_value=0.0,
+                    max_value=200.0,
+                    value=default_plan,
+                    step=0.5,
+                    key=f"timer_plan_{name}",
+                    label_visibility="collapsed",
+                )
+            total_plan_min += plan_min
+            plan_rows.append(
                 {
                     "顺序": idx,
                     "模块": name,
                     "计划用时(min)": plan_min,
-                    "累计至此(min)": cum,
                 }
             )
-        plan_df = _pd.DataFrame(rows)
-        total_plan = int(plan_df["计划用时(min)"].sum())
 
-        st.markdown("#### ② 本套卷各模块计划用时")
+        # 计算“累计至此”这一列
+        cum = 0.0
+        for row in plan_rows:
+            cum += row["计划用时(min)"]
+            row["累计至此(min)"] = cum
+
+        plan_df = _pd.DataFrame(plan_rows)
+
         st.caption(
-            f"这套按计划做完大约需要 **{total_plan} 分钟**。"
-            "做题时尽量别在前几个模块透支太多。"
+            f"按当前设置，这套卷按照计划做完大约需要 **{total_plan_min:.1f} 分钟**。"
         )
         st.dataframe(plan_df, use_container_width=True, hide_index=True)
 
         st.markdown("---")
 
-        # ③ 初始化计时器状态
+        # ③ 初始化计时器状态（放在 session_state 里）
         if "timer_running" not in st.session_state:
             st.session_state.timer_running = False
         if "timer_start_ts" not in st.session_state:
             st.session_state.timer_start_ts = None
         if "timer_elapsed_sec" not in st.session_state:
-            st.session_state.timer_elapsed_sec = 0
+            st.session_state.timer_elapsed_sec = 0.0
 
-        # ④ 计时器控制按钮
+        # ④ 控制按钮区
         c1, c2, c3 = st.columns(3)
         start_clicked = c1.button("▶️ 开始 / 继续", use_container_width=True)
         pause_clicked = c2.button("⏸️ 暂停", use_container_width=True)
@@ -1668,45 +1694,56 @@ elif menu == "⏱️ 做题计时器":
         if pause_clicked and st.session_state.timer_running:
             st.session_state.timer_running = False
             if st.session_state.timer_start_ts is not None:
-                st.session_state.timer_elapsed_sec += now_ts - st.session_state.timer_start_ts
+                st.session_state.timer_elapsed_sec += (
+                    now_ts - st.session_state.timer_start_ts
+                )
                 st.session_state.timer_start_ts = None
 
         # 重置
         if reset_clicked:
             st.session_state.timer_running = False
             st.session_state.timer_start_ts = None
-            st.session_state.timer_elapsed_sec = 0
+            st.session_state.timer_elapsed_sec = 0.0
 
-        # ⑤ 计算当前累计用时
+        # ⑤ 计算当前总用时（秒，带小数）
         elapsed = st.session_state.timer_elapsed_sec
         if st.session_state.timer_running and st.session_state.timer_start_ts is not None:
             elapsed += now_ts - st.session_state.timer_start_ts
 
-        elapsed_int = int(elapsed)
-        mm, ss = divmod(elapsed_int, 60)
+        # 转成 mm:ss.mmm 这种格式
+        total_ms = int(elapsed * 1000)
+        mm = total_ms // 60000
+        ss = (total_ms // 1000) % 60
+        ms = total_ms % 1000
 
-        # 显示大号计时器 + 与总计划时间对比
         st.markdown("#### ③ 实时总用时")
         timer_html = f"""
         <div style='font-size:52px;font-weight:800;text-align:center;margin:16px 0;'>
-            {mm:02d}:{ss:02d}
+            {mm:02d}:{ss:02d}.{ms:03d}
         </div>
         """
         st.markdown(timer_html, unsafe_allow_html=True)
 
-        if total_plan > 0:
-            used_min = elapsed / 60
-            ratio = min(used_min / total_plan, 1.0)
-            st.progress(ratio, text=f"计划 {total_plan} 分钟，目前约 {used_min:.1f} 分钟")
+        # ⑥ 用进度条展示「总计划用时」对比
+        if total_plan_min > 0:
+            used_min = elapsed / 60.0
+            ratio = min(used_min / total_plan_min, 1.0)
+            st.progress(
+                ratio,
+                text=f"计划 {total_plan_min:.1f} 分钟，目前约 {used_min:.1f} 分钟",
+            )
 
-        st.caption("提示：把这个页面开在一边，按顺序做题，时不时瞄一眼当前用时和计划对比就行。")
+        st.caption(
+            "建议：开着这个页面做整套题，专注做题，偶尔瞄一眼计时器，调整节奏就行。"
+        )
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ⑥ 如果在计时状态，让页面每秒刷新一次，形成“正计时”效果
+        # ⑦ 若正在计时，让页面自动刷新，形成“正计时”效果
         if st.session_state.timer_running:
-            time.sleep(1)
-            st.experimental_rerun()
+            # 这里用 0.1 秒一刷，既能看到毫秒跳动，又不至于太吃性能
+            time.sleep(0.1)
+            st.rerun()
 
 # ------------------- 本周训练计划 -------------------
 elif menu == "🗓️ 本周训练计划":
@@ -2240,6 +2277,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
