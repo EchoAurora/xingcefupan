@@ -444,6 +444,7 @@ PAPER_TEMPLATES = {
 }
 
 
+
 # 默认策略：数量/资料/逻辑的时间上限等
 DEFAULT_STRATEGY = {
     "数量_每题上限秒": 60,        # 数量：每题时间上限（秒）
@@ -1796,6 +1797,7 @@ elif menu == "📊 趋势分析":
         st.dataframe(display_df.sort_values("日期", ascending=False), use_container_width=True, hide_index=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
+
 # ------------------- 录入成绩 -------------------
 elif menu == "✏️ 录入成绩":
     st.markdown("""
@@ -1811,7 +1813,7 @@ elif menu == "✏️ 录入成绩":
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
 
-        # ---------- 选择试卷题量模板 ----------
+        # 选择试卷题量 / 分值模板
         paper_type = st.selectbox(
             "试卷题量配置",
             list(PAPER_TEMPLATES.keys()),
@@ -1836,7 +1838,7 @@ elif menu == "✏️ 录入成绩":
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
                 leaf_name = m
-                # 优先用模板里配置的题量，若没有则退回默认 total
+                # 优先使用模板里的题量，没有就退回模块结构中的 total
                 total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
 
                 st.markdown(f"**📌 {m}**")
@@ -1892,6 +1894,7 @@ elif menu == "✏️ 录入成绩":
                 time.sleep(0.7)
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 # ------------------- 数据管理 -------------------
@@ -2066,6 +2069,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
