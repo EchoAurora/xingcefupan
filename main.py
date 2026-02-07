@@ -350,7 +350,7 @@ st.markdown("""
 # 2. 配置与模块结构
 # =========================================================
 USERS_FILE = "users_db.json"
-FIXED_WEIGHT = 0.8           # 每个对题贡献的分值权重（总分 = 对题数 * 权重）
+FIXED_WEIGHT = 0.8           # 默认：省考 / 超格 每个对题0.8分
 GOAL_SCORE = 75.0            # 目标分，可按需调整
 
 # 模块结构：大模块 / 子模块
@@ -386,6 +386,61 @@ PLAN_TIME = {
     "判断-类比推理": 7,
     "判断-逻辑判断": 10,
     "资料分析": 25,
+}
+
+# ================= 新增：试卷题量与每题分值模板 =================
+# 录入成绩时可以从这里选不同机构套题的题量配置
+PAPER_TEMPLATES = {
+    # 省考试卷：125题，每题0.8
+    "省考套题（125题，0.8分/题）": {
+        "weight": FIXED_WEIGHT,
+        "totals": {
+            "政治理论": 15,
+            "常识判断": 15,
+            "言语-逻辑填空": 10,
+            "言语-片段阅读": 15,
+            "数量关系": 15,
+            "判断-图形推理": 5,
+            "判断-定义判断": 10,
+            "判断-类比推理": 10,
+            "判断-逻辑判断": 10,
+            "资料分析": 20,
+        },
+    },
+
+    # 花生套题：120题，每题0.85
+    "花生套题（120题，0.85分/题）": {
+        "weight": 0.85,
+        "totals": {
+            "政治理论": 15,
+            "常识判断": 10,
+            "言语-逻辑填空": 15,
+            "言语-片段阅读": 15,
+            "数量关系": 15,
+            "判断-图形推理": 5,
+            "判断-定义判断": 10,
+            "判断-类比推理": 5,
+            "判断-逻辑判断": 10,
+            "资料分析": 20,
+        },
+    },
+
+    # 超格套题：125题，每题0.8
+    "超格套题（125题，0.8分/题）": {
+        "weight": FIXED_WEIGHT,
+        "totals": {
+            "政治理论": 15,
+            "常识判断": 15,
+            "言语-逻辑填空": 10,
+            "言语-片段阅读": 20,
+            "数量关系": 15,
+            "判断-图形推理": 5,
+            "判断-定义判断": 10,
+            "判断-类比推理": 5,
+            "判断-逻辑判断": 10,
+            "资料分析": 20,
+        },
+    },
 }
 
 # 默认策略：数量/资料/逻辑的时间上限等
@@ -1741,7 +1796,6 @@ elif menu == "📊 趋势分析":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------- 录入成绩 -------------------
-# ------------------- 录入成绩 -------------------
 elif menu == "✏️ 录入成绩":
     st.markdown("""
     <div class="hero">
@@ -1755,107 +1809,84 @@ elif menu == "✏️ 录入成绩":
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
+
+        # ========= 新增：选择试卷题量 / 分值模板 =========
+        # 默认选省考试卷
+        paper_type = st.selectbox(
+            "试卷题量配置",
+            list(PAPER_TEMPLATES.keys()),
+            help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
+        )
+        tpl_cfg = PAPER_TEMPLATES[paper_type]
+        tpl_totals = tpl_cfg["totals"]        # 各叶子模块题量
+        per_score = tpl_cfg["weight"]        # 每题分值
+
+        st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
+
         st.divider()
 
-        entry = {"日期": date, "试卷": paper}
-        # tc: 总正确数；tq: 总题数；tt: 总用时；ts: 总分
-        tc, tq, tt, ts = 0, 0, 0, 0
+        # 把试卷类型和每题分值也记在记录里（方便以后看）
+        entry = {
+            "日期": date,
+            "试卷": paper,
+            "试卷类型": paper_type,
+            "每题分值": per_score,
+        }
+        tc, tq, tt, ts = 0, 0, 0, 0   # 总正确数 / 总题数 / 总用时 / 总分
 
+        # ========= 按模块录入 =========
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
-                st.markdown(f"**📌 {m}**")
-                # 新：增加“总题数”输入，默认用配置里的 total，当天试卷可以改
-                a, b, c, d = st.columns([1, 1, 1, 1])
-                default_total = int(config.get("total", 0))
-                m_total = a.number_input(
-                    "总题数",
-                    min_value=0,
-                    max_value=200,
-                    value=default_total,
-                    key=f"tot_{m}",
-                )
-                mq = b.number_input(
-                    "对题数",
-                    min_value=0,
-                    max_value=int(m_total) if m_total > 0 else 0,
-                    value=0,
-                    key=f"q_{m}",
-                )
-                mt = c.number_input(
-                    "实际用时(min)",
-                    min_value=0,
-                    max_value=180,
-                    value=int(PLAN_TIME.get(m, 5)),
-                    key=f"t_{m}",
-                )
-                mp = d.number_input(
-                    "计划用时(min)",
-                    min_value=0,
-                    max_value=180,
-                    value=int(PLAN_TIME.get(m, 5)),
-                    key=f"p_{m}",
-                )
+                # 叶子模块名就是 m 本身
+                leaf_name = m
+                # 优先使用模板里的题量，没有就退回默认配置中的 total
+                total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
 
-                entry[f"{m}_总题数"] = m_total
+                st.markdown(f"**📌 {m}**")
+                a, b, c = st.columns([1, 1, 1])
+                mq = a.number_input("对题数", 0, total_q, 0, key=f"q_{m}")
+                mt = b.number_input("实际用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"t_{m}")
+                mp = c.number_input("计划用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"p_{m}")
+
+                entry[f"{m}_总题数"] = total_q
                 entry[f"{m}_正确数"] = mq
                 entry[f"{m}_用时"] = mt
-                entry[f"{m}_正确率"] = mq / m_total if m_total > 0 else 0
+                entry[f"{m}_正确率"] = mq / total_q if total_q > 0 else 0
                 entry[f"{m}_计划用时"] = mp
 
                 tc += mq
-                tq += m_total
+                tq += total_q
                 tt += mt
-                ts += mq * FIXED_WEIGHT
+                ts += mq * per_score
+
             else:
+                # 有子模块（言语理解、判断推理）
                 st.markdown(f"**📌 {m}**")
                 sub_cols = st.columns(len(config["subs"]))
-                for idx, (sm, stot_default) in enumerate(config["subs"].items()):
+                for idx, (sm, stot) in enumerate(config["subs"].items()):
+                    leaf_name = sm
+                    sub_total = int(tpl_totals.get(leaf_name, stot))
+
                     with sub_cols[idx]:
                         st.caption(sm)
+                        sq = st.number_input("对题", 0, sub_total, 0, key=f"sq_{sm}")
+                        st_time = st.number_input("实(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"st_{sm}")
+                        st_plan = st.number_input("计(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"sp_{sm}")
 
-                        # 新：子模块同样可以自定义题量
-                        s_total = st.number_input(
-                            "总题",
-                            min_value=0,
-                            max_value=200,
-                            value=int(stot_default),
-                            key=f"tot_{sm}",
-                        )
-                        sq = st.number_input(
-                            "对题",
-                            min_value=0,
-                            max_value=int(s_total) if s_total > 0 else 0,
-                            value=0,
-                            key=f"sq_{sm}",
-                        )
-                        st_time = st.number_input(
-                            "实(min)",
-                            min_value=0,
-                            max_value=180,
-                            value=int(PLAN_TIME.get(sm, 5)),
-                            key=f"st_{sm}",
-                        )
-                        st_plan = st.number_input(
-                            "计(min)",
-                            min_value=0,
-                            max_value=180,
-                            value=int(PLAN_TIME.get(sm, 5)),
-                            key=f"sp_{sm}",
-                        )
+                    entry[f"{sm}_总题数"] = sub_total
+                    entry[f"{sm}_正确数"] = sq
+                    entry[f"{sm}_用时"] = st_time
+                    entry[f"{sm}_正确率"] = sq / sub_total if sub_total > 0 else 0
+                    entry[f"{sm}_计划用时"] = st_plan
 
-                        entry[f"{sm}_总题数"] = s_total
-                        entry[f"{sm}_正确数"] = sq
-                        entry[f"{sm}_用时"] = st_time
-                        entry[f"{sm}_正确率"] = sq / s_total if s_total > 0 else 0
-                        entry[f"{sm}_计划用时"] = st_plan
-
-                        tc += sq
-                        tq += s_total
-                        tt += st_time
-                        ts += sq * FIXED_WEIGHT
+                    tc += sq
+                    tq += sub_total
+                    tt += st_time
+                    ts += sq * per_score
 
             st.markdown("---")
 
+        # ========= 提交保存 =========
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
             if not paper:
                 st.error("请输入试卷名称")
@@ -1873,7 +1904,6 @@ elif menu == "✏️ 录入成绩":
                 time.sleep(0.7)
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # ------------------- 数据管理 -------------------
 elif menu == "⚙️ 数据管理":
