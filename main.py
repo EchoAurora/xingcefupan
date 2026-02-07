@@ -1741,6 +1741,7 @@ elif menu == "📊 趋势分析":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------- 录入成绩 -------------------
+# ------------------- 录入成绩 -------------------
 elif menu == "✏️ 录入成绩":
     st.markdown("""
     <div class="hero">
@@ -1757,53 +1758,114 @@ elif menu == "✏️ 录入成绩":
         st.divider()
 
         entry = {"日期": date, "试卷": paper}
+        # tc: 总正确数；tq: 总题数；tt: 总用时；ts: 总分
         tc, tq, tt, ts = 0, 0, 0, 0
 
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
                 st.markdown(f"**📌 {m}**")
-                a, b, c = st.columns([1, 1, 1])
-                mq = a.number_input("对题数", 0, config["total"], 0, key=f"q_{m}")
-                mt = b.number_input("实际用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"t_{m}")
-                mp = c.number_input("计划用时(min)", 0, 180, int(PLAN_TIME.get(m, 5)), key=f"p_{m}")
+                # 新：增加“总题数”输入，默认用配置里的 total，当天试卷可以改
+                a, b, c, d = st.columns([1, 1, 1, 1])
+                default_total = int(config.get("total", 0))
+                m_total = a.number_input(
+                    "总题数",
+                    min_value=0,
+                    max_value=200,
+                    value=default_total,
+                    key=f"tot_{m}",
+                )
+                mq = b.number_input(
+                    "对题数",
+                    min_value=0,
+                    max_value=int(m_total) if m_total > 0 else 0,
+                    value=0,
+                    key=f"q_{m}",
+                )
+                mt = c.number_input(
+                    "实际用时(min)",
+                    min_value=0,
+                    max_value=180,
+                    value=int(PLAN_TIME.get(m, 5)),
+                    key=f"t_{m}",
+                )
+                mp = d.number_input(
+                    "计划用时(min)",
+                    min_value=0,
+                    max_value=180,
+                    value=int(PLAN_TIME.get(m, 5)),
+                    key=f"p_{m}",
+                )
 
-                entry[f"{m}_总题数"] = config["total"]
+                entry[f"{m}_总题数"] = m_total
                 entry[f"{m}_正确数"] = mq
                 entry[f"{m}_用时"] = mt
-                entry[f"{m}_正确率"] = mq / config["total"] if config["total"] > 0 else 0
+                entry[f"{m}_正确率"] = mq / m_total if m_total > 0 else 0
                 entry[f"{m}_计划用时"] = mp
 
                 tc += mq
-                tq += config["total"]
+                tq += m_total
                 tt += mt
                 ts += mq * FIXED_WEIGHT
             else:
                 st.markdown(f"**📌 {m}**")
                 sub_cols = st.columns(len(config["subs"]))
-                for idx, (sm, stot) in enumerate(config["subs"].items()):
+                for idx, (sm, stot_default) in enumerate(config["subs"].items()):
                     with sub_cols[idx]:
                         st.caption(sm)
-                        sq = st.number_input("对题", 0, stot, 0, key=f"sq_{sm}")
-                        st_time = st.number_input("实(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"st_{sm}")
-                        st_plan = st.number_input("计(min)", 0, 180, int(PLAN_TIME.get(sm, 5)), key=f"sp_{sm}")
 
-                        entry[f"{sm}_总题数"] = stot
+                        # 新：子模块同样可以自定义题量
+                        s_total = st.number_input(
+                            "总题",
+                            min_value=0,
+                            max_value=200,
+                            value=int(stot_default),
+                            key=f"tot_{sm}",
+                        )
+                        sq = st.number_input(
+                            "对题",
+                            min_value=0,
+                            max_value=int(s_total) if s_total > 0 else 0,
+                            value=0,
+                            key=f"sq_{sm}",
+                        )
+                        st_time = st.number_input(
+                            "实(min)",
+                            min_value=0,
+                            max_value=180,
+                            value=int(PLAN_TIME.get(sm, 5)),
+                            key=f"st_{sm}",
+                        )
+                        st_plan = st.number_input(
+                            "计(min)",
+                            min_value=0,
+                            max_value=180,
+                            value=int(PLAN_TIME.get(sm, 5)),
+                            key=f"sp_{sm}",
+                        )
+
+                        entry[f"{sm}_总题数"] = s_total
                         entry[f"{sm}_正确数"] = sq
                         entry[f"{sm}_用时"] = st_time
-                        entry[f"{sm}_正确率"] = sq / stot if stot > 0 else 0
+                        entry[f"{sm}_正确率"] = sq / s_total if s_total > 0 else 0
                         entry[f"{sm}_计划用时"] = st_plan
 
                         tc += sq
-                        tq += stot
+                        tq += s_total
                         tt += st_time
                         ts += sq * FIXED_WEIGHT
+
             st.markdown("---")
 
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
             if not paper:
                 st.error("请输入试卷名称")
             else:
-                entry.update({"总分": round(ts, 2), "总正确数": tc, "总题数": tq, "总用时": tt})
+                entry.update({
+                    "总分": round(ts, 2),
+                    "总正确数": tc,
+                    "总题数": tq,
+                    "总用时": tt,
+                })
                 df2 = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
                 df2 = ensure_schema(df2)
                 save_data(df2, un)
@@ -1811,6 +1873,7 @@ elif menu == "✏️ 录入成绩":
                 time.sleep(0.7)
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ------------------- 数据管理 -------------------
 elif menu == "⚙️ 数据管理":
