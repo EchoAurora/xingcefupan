@@ -376,17 +376,18 @@ MODULE_STRUCTURE = {
 
 # 每个子模块推荐的计划用时（分钟）
 PLAN_TIME = {
-    "政治理论": 5,
-    "常识判断": 5,
-    "言语-逻辑填空": 18,
-    "言语-片段阅读": 22,
-    "数量关系": 25,
-    "判断-图形推理": 5,
-    "判断-定义判断": 8,
-    "判断-类比推理": 7,
-    "判断-逻辑判断": 10,
-    "资料分析": 25,
+    "判断-图形推理": 6.0,
+    "判断-类比推理": 5.0,
+    "判断-逻辑判断": 10.0,
+    "判断-定义判断": 6.0,
+    "资料分析": 25.0,
+    "数量关系": 25.0,
+    "政治理论": 5.0,
+    "常识判断": 5.0,
+    "言语-逻辑填空": 5.0,
+    "言语-片段阅读": 12.0,
 }
+
 
 # ================= 新增：试卷题量与每题分值模板 =================
 # 试卷题量 & 每题分值模板（录入成绩时选择）
@@ -2131,7 +2132,7 @@ elif menu == "📊 趋势分析":
         st.dataframe(display_df.sort_values("日期", ascending=False), use_container_width=True, hide_index=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-
+# ------------------- 录入成绩 -------------------
 elif menu == "✏️ 录入成绩":
     st.markdown("""
     <div class="hero">
@@ -2140,75 +2141,83 @@ elif menu == "✏️ 录入成绩":
     </div>
     """, unsafe_allow_html=True)
 
-    # 从计时器页面带过来的计划用时 / 实际用时（分钟），如果没有就为空，不影响使用
-    timer_map = st.session_state.get("timer_to_input", {})
-    timer_plan = timer_map.get("plan", {})
-    timer_actual = timer_map.get("actual", {})
-
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    # 试卷题量 / 每题分值模板选择（放在表单外，切换时立即生效）
-    paper_type = st.selectbox(
-        "试卷题量配置",
-        list(PAPER_TEMPLATES.keys()),
-        key="paper_type_cfg",
-        help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
-    )
-    tpl_cfg = PAPER_TEMPLATES[paper_type]
-    tpl_totals = tpl_cfg["totals"]
-    per_score = tpl_cfg["weight"]
-
-    st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
-    st.divider()
-
+    # ① 试卷基本信息
     with st.form("input_score"):
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
+
+        # ② 本套主观状态（简单但有用）
+        s1, s2 = st.columns(2)
+        state_level = s1.selectbox(
+            "本套状态自评",
+            [
+                "未填写",
+                "1 精神很差 / 很困",
+                "2 有点累 / 注意力飘",
+                "3 一般",
+                "4 还可以",
+                "5 精神很好 / 手感不错",
+            ],
+            index=3,
+            key="state_level_this_paper",
+        )
+        feeling = s2.text_input(
+            "本套一句话感受（可选）",
+            placeholder="例：数量一开始卡住，后面心态有点炸 / 资料做完已经有点烦",
+            key="feeling_this_paper",
+        )
+
         st.divider()
 
-        # 记录本场考试整体信息
+        # ③ 试卷题量 / 分值模板（省考 / 花生 / 超格）
+        paper_type = st.selectbox(
+            "试卷题量配置",
+            list(PAPER_TEMPLATES.keys()),
+            help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
+        )
+        tpl_cfg = PAPER_TEMPLATES[paper_type]
+        tpl_totals = tpl_cfg["totals"]
+        per_score = tpl_cfg["weight"]
+
+        st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
+        st.divider()
+
+        # ④ 初始化整套卷记录
         entry = {
             "日期": date,
             "试卷": paper,
             "试卷类型": paper_type,
             "每题分值": per_score,
+            "本套_状态自评": state_level,
+            "本套_一句话感受": feeling,
         }
 
-        # 总正确数 / 总题数 / 总用时 / 总分
-        tc, tq, tt, ts = 0, 0, 0, 0
+        tc, tq, tt, ts = 0, 0, 0, 0  # 总正确数 / 总题数 / 总用时 / 总分
 
+        # ⑤ 逐模块录入
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
                 leaf_name = m
-                # 题量：优先用当前模板里的值，没有再退回默认 MODULE_STRUCTURE
+                # 题量：优先用模板，再退回 MODULE_STRUCTURE 默认
                 total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
 
                 st.markdown(f"**📌 {m}**")
                 a, b, c = st.columns([1, 1, 1])
-
                 mq = a.number_input("对题数", 0, total_q, 0, key=f"q_{m}")
-
-                # 实际用时：优先用计时器记录，其次 PLAN_TIME 默认
-                default_actual = timer_actual.get(leaf_name)
-                if default_actual is None:
-                    default_actual = PLAN_TIME.get(m, 5)
                 mt = b.number_input(
                     "实际用时(min)",
                     0.0, 180.0,
-                    float(default_actual),
+                    float(PLAN_TIME.get(m, 5.0)),
                     step=0.5,
                     key=f"t_{m}",
                 )
-
-                # 计划用时：优先用计时器里的计划值，其次 PLAN_TIME
-                default_plan = timer_plan.get(leaf_name)
-                if default_plan is None:
-                    default_plan = PLAN_TIME.get(m, 5)
                 mp = c.number_input(
                     "计划用时(min)",
                     0.0, 180.0,
-                    float(default_plan),
+                    float(PLAN_TIME.get(m, 5.0)),
                     step=0.5,
                     key=f"p_{m}",
                 )
@@ -2219,13 +2228,47 @@ elif menu == "✏️ 录入成绩":
                 entry[f"{m}_正确率"] = mq / total_q if total_q > 0 else 0
                 entry[f"{m}_计划用时"] = mp
 
+                # 数量关系 / 资料分析：只问“主动放弃 & 蒙猜”，不再按题型拆
+                if m == "数量关系":
+                    with st.expander("数量补充信息（可选）", expanded=False):
+                        s_skip, s_guess = st.columns(2)
+                        num_skip = s_skip.number_input(
+                            "数量-主动放弃题数",
+                            0, total_q, 0,
+                            key="数量_主动放弃题数",
+                        )
+                        num_guess = s_guess.number_input(
+                            "数量-蒙猜题数",
+                            0, total_q, 0,
+                            key="数量_蒙猜题数",
+                        )
+                        entry["数量关系_跳过题数"] = num_skip
+                        entry["数量关系_蒙猜题数"] = num_guess
+
+                if m == "资料分析":
+                    with st.expander("资料补充信息（可选）", expanded=False):
+                        s_skip2, s_guess2 = st.columns(2)
+                        d_skip = s_skip2.number_input(
+                            "资料-主动放弃题数",
+                            0, total_q, 0,
+                            key="资料_主动放弃题数",
+                        )
+                        d_guess = s_guess2.number_input(
+                            "资料-蒙猜题数",
+                            0, total_q, 0,
+                            key="资料_蒙猜题数",
+                        )
+                        entry["资料分析_跳过题数"] = d_skip
+                        entry["资料分析_蒙猜题数"] = d_guess
+
+                # 汇总
                 tc += mq
                 tq += total_q
                 tt += mt
                 ts += mq * per_score
 
             else:
-                # 有子模块（言语理解 / 判断推理）
+                # 有子模块（言语 / 判断）
                 st.markdown(f"**📌 {m}**")
                 sub_cols = st.columns(len(config["subs"]))
                 for idx, (sm, stot) in enumerate(config["subs"].items()):
@@ -2235,25 +2278,17 @@ elif menu == "✏️ 录入成绩":
                     with sub_cols[idx]:
                         st.caption(sm)
                         sq = st.number_input("对题", 0, sub_total, 0, key=f"sq_{sm}")
-
-                        default_actual = timer_actual.get(leaf_name)
-                        if default_actual is None:
-                            default_actual = PLAN_TIME.get(sm, 5)
                         st_time = st.number_input(
                             "实(min)",
                             0.0, 180.0,
-                            float(default_actual),
+                            float(PLAN_TIME.get(sm, 5.0)),
                             step=0.5,
                             key=f"st_{sm}",
                         )
-
-                        default_plan = timer_plan.get(leaf_name)
-                        if default_plan is None:
-                            default_plan = PLAN_TIME.get(sm, 5)
                         st_plan = st.number_input(
                             "计(min)",
                             0.0, 180.0,
-                            float(default_plan),
+                            float(PLAN_TIME.get(sm, 5.0)),
                             step=0.5,
                             key=f"sp_{sm}",
                         )
@@ -2271,6 +2306,7 @@ elif menu == "✏️ 录入成绩":
 
             st.markdown("---")
 
+        # ⑥ 提交整套卷
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
             if not paper:
                 st.error("请输入试卷名称")
@@ -2285,11 +2321,9 @@ elif menu == "✏️ 录入成绩":
                 df2 = ensure_schema(df2)
                 save_data(df2, un)
                 st.success("数据已存档")
-                # 用完一次之后清掉计时器缓存，避免影响下一套
-                if "timer_to_input" in st.session_state:
-                    del st.session_state["timer_to_input"]
                 time.sleep(0.7)
                 st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -2467,6 +2501,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
