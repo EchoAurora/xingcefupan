@@ -1307,14 +1307,10 @@ elif menu == "📑 单卷详情":
 
         # =============== 明天怎么练 ===============
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='mini-header'>明天训练计划（自动生成）</div>", unsafe_allow_html=True)
+   
 
         st.markdown(f"""
         <ol style="margin: 0 0 0 18px;">
-          <li>{tasks[0]}</li>
-          <li>{tasks[1]}</li>
-          <li>{tasks[2]}</li>
-        </ol>
 
         <div class='small-muted' style='margin-top:10px;'>
             重点短板：<b>{worst_acc[0]}</b>（正确率 {worst_acc[1]:.0%}）；
@@ -2501,6 +2497,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
