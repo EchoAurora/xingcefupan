@@ -389,7 +389,7 @@ PLAN_TIME = {
 }
 
 
-# ================= 新增：试卷题量与每题分值模板 =================
+# ================= 试卷题量与每题分值模板 =================
 # 试卷题量 & 每题分值模板（录入成绩时选择）
 PAPER_TEMPLATES = {
     # 省考试卷：125题，每题0.8
@@ -2143,13 +2143,27 @@ elif menu == "✏️ 录入成绩":
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    # ① 试卷基本信息
+    # ① 试卷题量 / 分值模板 
+    paper_type = st.selectbox(
+        "试卷题量配置",
+        list(PAPER_TEMPLATES.keys()),
+        key="paper_type_cfg",
+        help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
+    )
+    tpl_cfg = PAPER_TEMPLATES[paper_type]
+    tpl_totals = tpl_cfg["totals"]
+    per_score = tpl_cfg["weight"]
+
+    st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
+    st.divider()
+
+    # ② 录入表单
     with st.form("input_score"):
+        # 基本信息
         c1, c2 = st.columns(2)
         paper = c1.text_input("试卷全称", placeholder="例如：粉笔组卷xxx / 省考模考第X套")
         date = c2.date_input("考试日期")
 
-        # ② 本套主观状态（简单但有用）
         s1, s2 = st.columns(2)
         state_level = s1.selectbox(
             "本套状态自评",
@@ -2172,20 +2186,7 @@ elif menu == "✏️ 录入成绩":
 
         st.divider()
 
-        # ③ 试卷题量 / 分值模板（省考 / 花生 / 超格）
-        paper_type = st.selectbox(
-            "试卷题量配置",
-            list(PAPER_TEMPLATES.keys()),
-            help="不同机构套题的题量分布和每题分值不同，这里会自动用于计算总题数和总分。"
-        )
-        tpl_cfg = PAPER_TEMPLATES[paper_type]
-        tpl_totals = tpl_cfg["totals"]
-        per_score = tpl_cfg["weight"]
-
-        st.caption(f"当前选择：{paper_type} ｜ 每题 {per_score} 分")
-        st.divider()
-
-        # ④ 初始化整套卷记录
+        # 初始化整套卷记录
         entry = {
             "日期": date,
             "试卷": paper,
@@ -2197,11 +2198,11 @@ elif menu == "✏️ 录入成绩":
 
         tc, tq, tt, ts = 0, 0, 0, 0  # 总正确数 / 总题数 / 总用时 / 总分
 
-        # ⑤ 逐模块录入
+        # ③ 逐模块录入
         for m, config in MODULE_STRUCTURE.items():
             if config["type"] == "direct":
                 leaf_name = m
-                # 题量：优先用模板，再退回 MODULE_STRUCTURE 默认
+                # 题量：优先用模板的配置，没有就用 MODULE_STRUCTURE 默认
                 total_q = int(tpl_totals.get(leaf_name, config.get("total", 0)))
 
                 st.markdown(f"**📌 {m}**")
@@ -2228,7 +2229,7 @@ elif menu == "✏️ 录入成绩":
                 entry[f"{m}_正确率"] = mq / total_q if total_q > 0 else 0
                 entry[f"{m}_计划用时"] = mp
 
-                # 数量关系 / 资料分析：只问“主动放弃 & 蒙猜”，不再按题型拆
+                # 数量关系 / 资料分析：可选的“主动放弃 & 蒙猜”
                 if m == "数量关系":
                     with st.expander("数量补充信息（可选）", expanded=False):
                         s_skip, s_guess = st.columns(2)
@@ -2306,7 +2307,7 @@ elif menu == "✏️ 录入成绩":
 
             st.markdown("---")
 
-        # ⑥ 提交整套卷
+        # ④ 提交整套卷
         if st.form_submit_button("🚀 提交存档", type="primary", use_container_width=True):
             if not paper:
                 st.error("请输入试卷名称")
@@ -2325,7 +2326,6 @@ elif menu == "✏️ 录入成绩":
                 st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 
@@ -2501,6 +2501,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
