@@ -37,7 +37,7 @@ if password is None:
         "未找到管理员密码：请在 Streamlit Cloud 的 Secrets 中配置 ADMIN_DEFAULT_PASSWORD。"
     )
 
-ADMIN_DEFAULT_PASSWORD = 123456
+
 # =========================================================
 # 0. 页面配置
 # =========================================================
@@ -2507,6 +2507,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
