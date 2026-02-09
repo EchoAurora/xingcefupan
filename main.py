@@ -23,25 +23,18 @@ import io
 import zipfile
 from typing import Dict, List, Tuple
 
-# 尝试从 Streamlit Cloud Secrets 读取
+import toml
+
 password = None
 try:
     password = st.secrets["ADMIN_DEFAULT_PASSWORD"]
 except Exception:
     pass
 
-# 如果 Cloud 里没有，则从本地 .streamlit/secrets.toml 读取
 if password is None:
-    local_secret_path = ".streamlit/secrets.toml"
-    if os.path.exists(local_secret_path):
-        try:
-            password = toml.load(local_secret_path).get("ADMIN_DEFAULT_PASSWORD")
-        except Exception:
-            pass
-
-if password is None:
+    # 云端一定需要设置 Secrets，这里直接报错提醒
     raise ValueError(
-        "未找到管理员密码：请在 Streamlit Cloud 的 Secrets 或本地 .streamlit/secrets.toml 中配置 ADMIN_DEFAULT_PASSWORD。"
+        "未找到管理员密码：请在 Streamlit Cloud 的 Secrets 中配置 ADMIN_DEFAULT_PASSWORD。"
     )
 
 ADMIN_DEFAULT_PASSWORD = 123456
@@ -2514,6 +2507,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
