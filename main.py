@@ -24,37 +24,7 @@ import zipfile
 from typing import Dict, List, Tuple
 import toml
 
-def load_users() -> Dict:
-    """加载用户数据库，不存在则创建默认 admin。
 
-    逻辑：
-    - 如果 users_db.json 不存在：用当前 ADMIN_DEFAULT_PASSWORD 创建 admin
-    - 如果存在：正常读出来，然后强制把 admin 的密码重置为当前 ADMIN_DEFAULT_PASSWORD
-      （这样你在 Secrets 里改密码就会生效，不会被老文件卡死）
-    """
-    # 1）如果不存在用户文件：新建一个 admin
-    if not os.path.exists(USERS_FILE):
-        pwd = ADMIN_DEFAULT_PASSWORD or "admin123"
-        data = {
-            "admin": {
-                "name": "管理员",
-                "password": hash_pw(pwd),
-                "role": "admin",
-            }
-        }
-        save_users(data)
-        return data
-
-    # 2）已存在用户文件：读出来
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    # 3）强制同步 admin 密码 = 当前 ADMIN_DEFAULT_PASSWORD
-    if "admin" in data and ADMIN_DEFAULT_PASSWORD:
-        data["admin"]["password"] = hash_pw(ADMIN_DEFAULT_PASSWORD)
-        save_users(data)
-
-    return data
 
 # =========================================================
 # 0. 页面配置
@@ -2525,6 +2495,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
