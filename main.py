@@ -347,6 +347,13 @@ st.markdown("""
 # =========================================================
 # 2. 配置与模块结构
 # =========================================================
+# 管理员默认密码：
+# 优先从 st.secrets 里读取；本地跑不配置 secrets 的话，就用一个开发用默认值
+try:
+    ADMIN_DEFAULT_PASSWORD = st.secrets.get("ADMIN_DEFAULT_PASSWORD", None)
+except Exception:
+    ADMIN_DEFAULT_PASSWORD = None
+
 USERS_FILE = "users_db.json"
 FIXED_WEIGHT = 0.8           # 默认：省考 / 超格 每个对题0.8分
 GOAL_SCORE = 75.0            # 目标分，可按需调整
@@ -2495,6 +2502,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
