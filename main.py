@@ -22,20 +22,32 @@ import time
 import io
 import zipfile
 from typing import Dict, List, Tuple
-
 import toml
 
-password = None
-try:
-    password = st.secrets["ADMIN_DEFAULT_PASSWORD"]
-except Exception:
-    pass
+def load_users() -> Dict:
+    
+    if not os.path.exists(USERS_FILE):
+        pwd = ADMIN_DEFAULT_PASSWORD or "admin123"
+        data = {
+            "admin": {
+                "name": "管理员",
+                "password": hash_pw(pwd),
+                "role": "admin",
+            }
+        }
+        save_users(data)
+        return data
 
-if password is None:
-    # 云端一定需要设置 Secrets，这里直接报错提醒
-    raise ValueError(
-        "未找到管理员密码：请在 Streamlit Cloud 的 Secrets 中配置 ADMIN_DEFAULT_PASSWORD。"
-    )
+  
+    with open(USERS_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+ 
+    if "admin" in data and ADMIN_DEFAULT_PASSWORD:
+        data["admin"]["password"] = hash_pw(ADMIN_DEFAULT_PASSWORD)
+        save_users(data)
+
+    return data
 
 
 # =========================================================
@@ -2507,6 +2519,7 @@ elif menu == "🛡️ 管理后台" and role == "admin":
                     st.success("已删除")
                     st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
